@@ -53,7 +53,7 @@ make
 Once the project is built, you can now run it. The following command also colors stderr outputs in red for better error visibility. Adjust the command as necessary, according to your downloaded and converted model name:
 
 ```console
-./rwkv ../models/rwkv_vocab_v20230424.csv ../models/RWKV-4-World-3B-v1-20230619-ctx4096.pth.bin 2> >(while read line; do echo -e "\e[01;31m$line\e[0m" >&2; done) 
+./rwkv ../models/rwkv_vocab_v20230424.csv ../models/<YOUR-CONVERTED-MODEL-NAME> 2> >(while read line; do echo -e "\e[01;31m$line\e[0m" >&2; done) 
 ```
 
 Replace `<YOUR-CONVERTED-MODEL-NAME>` with the name of your converted model file.
