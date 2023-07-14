@@ -21,11 +21,11 @@ module mod_channel_mix
         procedure, pass :: forward_single
         procedure, pass :: forward_batch
         generic :: forward => forward_single, forward_batch
-    end type channel_mix_type
+    end type
 
     interface channel_mix_type
         module procedure :: channel_mix_constructor
-    end interface channel_mix_type
+    end interface
 
 contains
 
@@ -43,7 +43,7 @@ contains
         allocate(self%wr(d_model, d_model))
         allocate(self%mk(d_model))
         allocate(self%mr(d_model))
-    end function channel_mix_constructor
+    end function
 
     subroutine read_params(self, file_u, iostat)
         class(channel_mix_type), intent(inout) :: self
@@ -59,7 +59,7 @@ contains
         if (iostat /= 0) return
         read(file_u, iostat=iostat) self%mr
         if (iostat /= 0) return
-    end subroutine read_params
+    end subroutine
 
     function forward_single(self, x, state) result(rkv)
         use mod_functions, only: relu, sigmoid
@@ -80,7 +80,7 @@ contains
         rkv = sigmoid(r) * kv
 
         state%ffn_xx = x ! update state
-    end function forward_single
+    end function
 
     function forward_batch(self, x, state) result(rkv)
         use mod_functions, only: relu, sigmoid
@@ -109,6 +109,6 @@ contains
         rkv = sigmoid(r) * kv
 
         state%ffn_xx = x(:, n) ! Update state
-    end function forward_batch
+    end function
 
-end module mod_channel_mix
+end module

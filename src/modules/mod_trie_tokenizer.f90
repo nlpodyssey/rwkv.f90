@@ -10,7 +10,7 @@ module mod_trie_tokenizer
 
     type :: trie_p
         type(trie), pointer :: p => null()
-    end type trie_p
+    end type
 
     type :: trie
         character :: char
@@ -20,11 +20,11 @@ module mod_trie_tokenizer
         procedure :: add => trie_add
         procedure :: print => trie_print
         procedure :: find_longest => trie_find_longest
-    end type trie
+    end type
 
     type :: token
         character(:), allocatable :: value
-    end type token
+    end type
 
     type :: trie_tokenizer
         type(token), allocatable :: tokens(:)
@@ -32,7 +32,7 @@ module mod_trie_tokenizer
     contains
         procedure :: encode => trie_tokenizer_encode
         procedure :: decode => trie_tokenizer_decode
-    end type trie_tokenizer
+    end type
 
 contains
 
@@ -66,7 +66,7 @@ contains
             call tokenizer%root%add(&
                     tokenizer%tokens(token_index)%value, 1, token_index)
         end do
-    end function load_trie_tokenizer
+    end function
 
     pure subroutine int2char(values, chars)
         integer(int16), intent(in) :: values(:)
@@ -76,7 +76,7 @@ contains
         do concurrent (i = 1:size(values))
             chars(i:i) = char(values(i))
         end do
-    end subroutine int2char
+    end subroutine
 
     subroutine trie_add(self, key, index, value_index)
         class(trie), intent(inout) :: self
@@ -105,7 +105,7 @@ contains
         end if
 
         call next%add(key, index + 1, value_index)
-    end subroutine trie_add
+    end subroutine
 
     subroutine trie_print(self, padding)
         class(trie), intent(in) :: self
@@ -129,7 +129,7 @@ contains
         do i = 1, size(self%next)
             if (associated(self%next(i)%p)) call self%next(i)%p%print(spaces + 2)
         end do
-    end subroutine trie_print
+    end subroutine
 
     function trie_tokenizer_encode(self, text) result(tokens)
         class(trie_tokenizer), intent(in) :: self
@@ -144,7 +144,7 @@ contains
             call self%root%find_longest(text, text_index, token_index)
             tokens = [tokens, token_index]
         end do
-    end function trie_tokenizer_encode
+    end function
 
     subroutine trie_find_longest(self, text, text_index, token_index)
         class(trie), target, intent(in) :: self
@@ -172,7 +172,7 @@ contains
             if (i > len(text)) return
             ic = ichar(text(i:i)) + 1
         end do
-    end subroutine trie_find_longest
+    end subroutine
 
     pure function trie_tokenizer_decode(self, tokens) result(text)
         class(trie_tokenizer), intent(in) :: self
@@ -192,6 +192,6 @@ contains
             text(j:j + l - 1) = self%tokens(tokens(i))%value
             j = j + l
         end do
-    end function trie_tokenizer_decode
+    end function
 
-end module mod_trie_tokenizer
+end module

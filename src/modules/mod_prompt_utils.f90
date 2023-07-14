@@ -21,6 +21,6 @@ contains
             generate_prompt = "Question: " // trim(instruction) // achar(10) // achar(10) // &
                     "Response:"
         end if
-    end function generate_prompt
+    end function
 
-end module mod_prompt_utils
+end module

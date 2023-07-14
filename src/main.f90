@@ -49,7 +49,7 @@ contains
 
         model_filename = trim(model_filename)
         tokenizer_filename = trim(tokenizer_filename)
-    end subroutine get_arguments
+    end subroutine
 
     subroutine load_files(tokenizer_filename, model_filename, tokenizer, model)
         character(len=128), intent(in) :: tokenizer_filename, model_filename
@@ -73,7 +73,7 @@ contains
         write(stderr,'(a)') "    done. (" // real_to_str(real(t2-t1)/count_rate) // "s)"
 
         call display_model_info(model)
-    end subroutine load_files
+    end subroutine
 
     subroutine display_model_info(m)
         type(rwkv_lm_type), intent(in) :: m
@@ -82,7 +82,7 @@ contains
         write(stderr,'(a, i0)') "    d_model: ", m%d_model
         write(stderr,'(a, i0)') "    vocab_size: ", m%vocab_size
         write(stderr,'(a, i0)') "    n_layers: ", m%n_layers
-    end subroutine display_model_info
+    end subroutine
 
     subroutine precompute_layer_norm_embeddings(model)
         use mod_functions, only : layer_norm_2d
@@ -98,7 +98,7 @@ contains
         model%precomputed_ln_emb = .true.
         call system_clock(count=t2)
         write(stderr,'(a)') "    done. (" // real_to_str(real(t2-t1)/count_rate) // "s)"
-    end subroutine precompute_layer_norm_embeddings
+    end subroutine
 
     subroutine run_chat_example(model, tokenizer, gen_opts)
         use mod_state, only: state_type
@@ -124,7 +124,7 @@ contains
 
             call process_and_generate_text(model, tokenizer, gen_opts, state, prompt)
         end do
-    end subroutine run_chat_example
+    end subroutine
 
     subroutine process_and_generate_text(model, tokenizer, opts, state, prompt)
         use mod_state, only: state_type
@@ -168,13 +168,13 @@ contains
         call system_clock(count=t2)
         write(stdout, '(a)') ''
         write(stderr,'(a)') "    done. (" // real_to_str(real(t2-t1)/count_rate) // "s)"
-    end subroutine process_and_generate_text
+    end subroutine
 
     subroutine print_token(token)
         implicit none
         character(len=*), intent(in) :: token
         WRITE(stdout, '(a)', advance='no') token
-    end subroutine print_token
+    end subroutine
 
     function replace_slash_n(s) result(res)
         character(len=*), intent(in) :: s
@@ -193,7 +193,7 @@ contains
             res = temp
             pos = index(res, "\n")
         end do
-    end function replace_slash_n
+    end function
 
     subroutine handle_interrupt_signal(signal_number)
         integer, intent(in) :: signal_number
@@ -202,6 +202,6 @@ contains
         else
             stop "Exiting due to user interrupt"
         end if
-    end subroutine handle_interrupt_signal
+    end subroutine
 
-end program main
+end program

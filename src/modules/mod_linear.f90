@@ -15,11 +15,11 @@ module mod_linear
         procedure, pass :: forward_single
         procedure, pass :: forward_batch
         generic :: forward => forward_single, forward_batch
-    end type linear_type
+    end type
 
     interface linear_type
         module procedure :: linear_constructor
-    end interface linear_type
+    end interface
 
 contains
 

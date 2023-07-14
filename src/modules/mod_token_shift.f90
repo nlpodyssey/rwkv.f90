@@ -15,6 +15,6 @@ contains
 
         xx(:,1) = last_x
         xx(:,2:) = x(:,1:size(x, 2)-1)
-    end function token_shift
+    end function
 
-end module mod_token_shift
+end module

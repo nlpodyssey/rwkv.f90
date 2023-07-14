@@ -40,6 +40,6 @@ contains
                 end if
             end do
         end do
-    end function sample_from_multinomial
+    end function
 
-end module mod_stats
+end module

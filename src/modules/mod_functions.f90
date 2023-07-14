@@ -12,12 +12,12 @@ contains
     elemental real(sp) function sigmoid(x)
         real(sp), intent(in) :: x
         sigmoid = 1.0 / (1.0 + exp(-x))
-    end function sigmoid
+    end function
 
     elemental real(sp) function relu(x)
         real(sp), intent(in) :: x
         relu = max(0.0, x)
-    end function relu
+    end function
 
     function softmax_2d(x) result(y)
         real(sp), intent(in) :: x(:,:)
@@ -35,13 +35,13 @@ contains
         real(sp) :: y(size(x))
         y = exp(x - maxval(x))
         y = y / sum(y)
-    end function softmax_1d
+    end function
 
     function argmax(x) result(max_index)
         real(sp), intent(in) :: x(:)
         integer :: max_index
         max_index = maxloc(x, dim=1)
-    end function argmax
+    end function
 
     function layer_norm_2d(x, g, b, eps) result(y)
         real(sp), intent(in) :: x(:,:), g(:), b(:), eps
@@ -71,6 +71,6 @@ contains
         mean = sum(x) / input_size
         variance = sum((x - mean)**2) / input_size
         y = (x - mean) / sqrt(variance + eps) * g + b
-    end function layer_norm_1d
+    end function
 
-end module mod_functions
+end module

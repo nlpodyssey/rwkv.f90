@@ -25,11 +25,11 @@ module mod_time_mix
         procedure, pass :: forward_single
         procedure, pass :: forward_batch
         generic :: forward => forward_single, forward_batch
-    end type time_mix_type
+    end type
 
     interface time_mix_type
         module procedure :: time_mix_constructor
-    end interface time_mix_type
+    end interface
 
 contains
 
@@ -47,7 +47,7 @@ contains
         allocate(self%mr(d_model))
         allocate(self%td(d_model))
         allocate(self%tf(d_model))
-    end function time_mix_constructor
+    end function
 
     subroutine read_params(self, file_u, iostat)
         class(time_mix_type), intent(inout) :: self
@@ -71,7 +71,7 @@ contains
         if (iostat /= 0) return
         read(file_u, iostat=iostat) self%tf
         if (iostat /= 0) return
-    end subroutine read_params
+    end subroutine
 
     function forward_single(self, x, state) result(out)
         use mod_functions, only: sigmoid
@@ -110,7 +110,7 @@ contains
         state%att_aa = e1 * state%att_aa + e2 * v
         state%att_bb = e1 * state%att_bb + e2
         state%att_pp = p
-    end function forward_single
+    end function
 
     function forward_batch(self, x, state) result(out)
         use mod_functions, only: sigmoid
@@ -160,6 +160,6 @@ contains
 
         out = matmul(self%wo, rwkv)
 
-    end function forward_batch
+    end function
 
-end module mod_time_mix
+end module

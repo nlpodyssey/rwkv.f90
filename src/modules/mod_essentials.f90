@@ -13,7 +13,7 @@ contains
         character(len=32) :: temp_str
         write(temp_str,'(f8.3)') d
         real_to_str = trim(adjustl(temp_str))
-    end function real_to_str
+    end function
 
     subroutine write_i0_arr_1d(unit, arr)
         integer, intent(in) :: unit
@@ -28,6 +28,6 @@ contains
             end if
         end do
         write(unit, *)
-    end subroutine write_i0_arr_1d
+    end subroutine
 
-end module mod_essentials
+end module

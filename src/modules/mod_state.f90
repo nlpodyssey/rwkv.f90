@@ -13,15 +13,15 @@ module mod_state
         real(sp), allocatable :: att_aa(:)
         real(sp), allocatable :: att_bb(:)
         real(sp), allocatable :: att_pp(:)
-    end type layer_state_type
+    end type
 
     type :: state_type
         type(layer_state_type), allocatable :: layers(:)
-    end type state_type
+    end type
 
     interface state_type
         module procedure :: state_constructor
-    end interface state_type
+    end interface
     
 contains
 
@@ -46,6 +46,6 @@ contains
             self%layers(i)%att_bb = 0.0
             self%layers(i)%att_pp = -1e30
         end do
-    end function state_constructor
+    end function
 
-end module mod_state
+end module

@@ -22,13 +22,13 @@ module mod_generation
         real(sp) :: alpha_decay = 0.996 ! Gradually decay the penalty
         integer :: max_token_limit = 100
         logical :: use_multinomial = .true.
-    end type generation_options
+    end type
 
     abstract interface
         subroutine generated_token_handler(token_string)
             implicit none
             character(len=*), intent(in) :: token_string
-        end subroutine generated_token_handler
+        end subroutine
     end interface
 
 contains
@@ -95,7 +95,7 @@ contains
         end do
 
         in_generation = .false.
-    end subroutine generate_text
+    end subroutine
 
     subroutine apply_temperature(logits, temp)
         real(sp), intent(inout) :: logits(:)
@@ -113,7 +113,7 @@ contains
         else
             logits = logits / temp
         end if
-    end subroutine apply_temperature
+    end subroutine
 
     pure logical function is_whitespace(string)
         implicit none
@@ -128,6 +128,6 @@ contains
                 exit
             end if
         end do
-    end function is_whitespace
+    end function
 
-end module mod_generation
+end module

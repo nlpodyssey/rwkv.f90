@@ -27,11 +27,11 @@ module mod_rwkv_lm
         procedure, pass :: forward_single
         procedure, pass :: forward_batch
         generic :: forward => forward_single, forward_batch
-    end type rwkv_lm_type
+    end type
 
     interface rwkv_lm_type
         module procedure :: rwkv_lm_type_constructor
-    end interface rwkv_lm_type
+    end interface
 
 contains
 
@@ -58,7 +58,7 @@ contains
 
         allocate(self%emb(d_model, vocab_size))
         allocate(self%proj(vocab_size, d_model))
-    end function rwkv_lm_type_constructor
+    end function
 
     subroutine read_params(self, file_u, iostat)
         class(rwkv_lm_type), intent(inout) :: self
@@ -83,7 +83,7 @@ contains
 
         read(file_u, iostat=iostat) self%proj
         if (iostat /= 0) return
-    end subroutine read_params
+    end subroutine
 
     function load_rwkv_lm_model(filename) result(model)
         character(*), intent(in) :: filename
@@ -111,13 +111,13 @@ contains
             return
         end if
         close(u)
-    end function load_rwkv_lm_model
+    end function
 
     function init_state(self) result(state)
         class(rwkv_lm_type), intent(in) :: self
         type(state_type) :: state
         state = state_type(self%d_model, self%n_layers)
-    end function init_state
+    end function
 
     function forward_single(self, x, state) result(output)
         class(rwkv_lm_type), intent(in) :: self
@@ -141,7 +141,7 @@ contains
         end do
 
         output = matmul(self%proj, self%ln_out%forward(encoded))
-    end function forward_single
+    end function
 
     function forward_batch(self, x, state) result(output)
         class(rwkv_lm_type), intent(in) :: self
@@ -173,6 +173,6 @@ contains
         last_encoded = encoded(:, size(encoded, 2))
 
         output = matmul(self%proj, self%ln_out%forward(last_encoded))
-    end function forward_batch
+    end function
 
-end module mod_rwkv_lm
+end module

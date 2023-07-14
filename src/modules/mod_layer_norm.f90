@@ -16,11 +16,11 @@ module mod_layer_norm
         procedure, pass :: forward_single
         procedure, pass :: forward_batch
         generic :: forward => forward_single, forward_batch
-    end type layer_norm_type
+    end type
 
     interface layer_norm_type
         module procedure :: layer_norm_constructor
-    end interface layer_norm_type
+    end interface
 
 contains
 
@@ -34,7 +34,7 @@ contains
         allocate(self%b(d_model))
         self%g = 1.0
         self%b = 0.0
-    end function layer_norm_constructor
+    end function
 
     subroutine read_params(self, file_u, iostat)
         class(layer_norm_type), intent(inout) :: self
@@ -44,7 +44,7 @@ contains
         if (iostat /= 0) return
         read(file_u, iostat=iostat) self%b
         if (iostat /= 0) return
-    end subroutine read_params
+    end subroutine
 
     function forward_single(self, x) result(y)
         use mod_functions, only: layer_norm_1d
@@ -54,7 +54,7 @@ contains
         real(sp), allocatable :: y(:)
 
         y = layer_norm_1d(x, self%g, self%b, self%eps)
-    end function forward_single
+    end function
 
     function forward_batch(self, x) result(y)
         use mod_functions, only: layer_norm_2d
@@ -64,6 +64,6 @@ contains
         real(sp) :: y(size(x, 1), size(x, 2))
 
         y = layer_norm_2d(x, self%g, self%b, self%eps)
-    end function forward_batch
+    end function
 
-end module mod_layer_norm
+end module

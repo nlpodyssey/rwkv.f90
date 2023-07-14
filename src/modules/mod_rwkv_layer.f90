@@ -21,11 +21,11 @@ module mod_rwkv_layer
         procedure, pass :: forward_single
         procedure, pass :: forward_batch
         generic :: forward => forward_single, forward_batch
-    end type rwkv_layer_type
+    end type
 
     interface rwkv_layer_type
         module procedure :: rwkv_layer_constructor
-    end interface rwkv_layer_type
+    end interface
 
 contains
 
@@ -50,7 +50,7 @@ contains
         if (iostat /= 0) return
         call self%time_mix%read_params(file_u, iostat)
         if (iostat /= 0) return
-    end subroutine read_params
+    end subroutine
 
     function forward_single(self, x, state) result(y)
         class(rwkv_layer_type), intent(in) :: self
@@ -60,7 +60,7 @@ contains
 
         y = x + self%time_mix%forward(self%ln1%forward(x), state)
         y = y + self%channel_mix%forward(self%ln2%forward(y), state)
-    end function forward_single
+    end function
 
     function forward_batch(self, x, state) result(y)
         class(rwkv_layer_type), intent(in) :: self
@@ -70,6 +70,6 @@ contains
 
         y = x + self%time_mix%forward(self%ln1%forward(x), state)
         y = y + self%channel_mix%forward(self%ln2%forward(y), state)
-    end function forward_batch
+    end function
 
-end module mod_rwkv_layer
+end module
