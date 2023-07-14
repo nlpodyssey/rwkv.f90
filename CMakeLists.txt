@@ -3,7 +3,7 @@ project(rwkv)
 
 enable_language(Fortran)
 
-set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -std=f2018 -fall-intrinsics -ffree-line-length-none -O3 -fopenmp -fexternal-blas")
+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -std=f2018 -fall-intrinsics -ffree-line-length-none -O3 -ffast-math -funroll-loops -fopenmp -fexternal-blas")
 
 link_directories(/opt/homebrew/opt/openblas/lib) # Set OpenBLAS library path
 
