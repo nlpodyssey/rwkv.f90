@@ -120,20 +120,22 @@ contains
         type(layer_state_type), intent(inout) :: state
 
         integer :: i, n
-        real(sp), dimension(self%dm, size(x, 2)) :: xx, k, v, r, rwkv, out
+        real(sp), dimension(self%dm, size(x, 2)) :: xx, kx, vx, rx, k, v, r, rwkv, out
         real(sp), dimension(self%dm) :: ww, p, e1, e2, a, b
 
         n = size(x, 2)
 
         xx = token_shift(state%att_xx, x)
 
-        !$omp parallel do default(shared) private(i)
-        do i = 1, n
-            k(:,i) = matmul(self%wk, self%mk * x(:,i) + (1.0 - self%mk) * xx(:,i))
-            v(:,i) = matmul(self%wv, self%mv * x(:,i) + (1.0 - self%mv) * xx(:,i))
-            r(:,i) = matmul(self%wr, self%mr * x(:,i) + (1.0 - self%mr) * xx(:,i))
+        do concurrent (i=1:n)
+            kx(:,i) = self%mk * x(:,i) + (1.0 - self%mk) * xx(:,i)
+            vx(:,i) = self%mv * x(:,i) + (1.0 - self%mv) * xx(:,i)
+            rx(:,i) = self%mr * x(:,i) + (1.0 - self%mr) * xx(:,i)
         end do
-        !$omp end parallel do
+
+        k = matmul(self%wk, kx)
+        v = matmul(self%wv, vx)
+        r = matmul(self%wr, rx)
 
         do i = 1, n
             ww = k(:,i) + self%tf
