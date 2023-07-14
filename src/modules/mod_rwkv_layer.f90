@@ -9,7 +9,7 @@ module mod_rwkv_layer
     use mod_state, only: layer_state_type
     implicit none
     private
-    public :: rwkv_layer_type, make_rwkv_layer
+    public :: rwkv_layer_type
 
     type :: rwkv_layer_type
         type(layer_norm_type)  :: ln1
@@ -23,17 +23,20 @@ module mod_rwkv_layer
         generic :: forward => forward_single, forward_batch
     end type rwkv_layer_type
 
+    interface rwkv_layer_type
+        module procedure :: rwkv_layer_constructor
+    end interface rwkv_layer_type
+
 contains
 
-    function make_rwkv_layer(d_model) result(rwkv_layer)
+    pure type(rwkv_layer_type) function rwkv_layer_constructor(d_model) result(self)
         integer, intent(in) :: d_model
-        type(rwkv_layer_type) :: rwkv_layer
 
-        rwkv_layer%ln1 = layer_norm_type(d_model, 1e-5)
-        rwkv_layer%ln2 = layer_norm_type(d_model, 1e-5)
-        rwkv_layer%channel_mix = channel_mix_type(d_model)
-        rwkv_layer%time_mix = time_mix_type(d_model)
-    end function make_rwkv_layer
+        self%ln1 = layer_norm_type(d_model, 1e-5)
+        self%ln2 = layer_norm_type(d_model, 1e-5)
+        self%channel_mix = channel_mix_type(d_model)
+        self%time_mix = time_mix_type(d_model)
+    end function
 
     subroutine read_params(self, file_u, iostat)
         class(rwkv_layer_type), intent(inout) :: self

@@ -8,7 +8,7 @@ module mod_rwkv_lm
     use mod_rwkv_layer
     implicit none
     private
-    public rwkv_lm_type, make_rwkv_lm, load_rwkv_lm_model
+    public rwkv_lm_type, load_rwkv_lm_model
 
     real, parameter :: layer_norm_eps = 1.0e-5
     integer, parameter :: rescale_layer = 6
@@ -29,33 +29,36 @@ module mod_rwkv_lm
         generic :: forward => forward_single, forward_batch
     end type rwkv_lm_type
 
+    interface rwkv_lm_type
+        module procedure :: rwkv_lm_type_constructor
+    end interface rwkv_lm_type
+
 contains
 
-    function make_rwkv_lm(d_model, vocab_size, n_layers) result(rwkv_lm)
-        integer, intent(in) :: n_layers
-        integer, intent(in) :: vocab_size
+    pure type(rwkv_lm_type) function rwkv_lm_type_constructor(d_model, vocab_size, n_layers) result(self)
         integer, intent(in) :: d_model
+        integer, intent(in) :: vocab_size
+        integer, intent(in) :: n_layers
 
-        type(rwkv_lm_type) :: rwkv_lm
         integer :: i
 
-        rwkv_lm%precomputed_ln_emb = .false.
-        rwkv_lm%d_model = d_model
-        rwkv_lm%n_layers = n_layers
-        rwkv_lm%vocab_size = vocab_size
+        self%precomputed_ln_emb = .false.
+        self%d_model = d_model
+        self%n_layers = n_layers
+        self%vocab_size = vocab_size
 
-        rwkv_lm%ln_emb = layer_norm_type(d_model, 1e-5)
+        self%ln_emb = layer_norm_type(d_model, 1e-5)
 
-        allocate(rwkv_lm%layers(n_layers))
+        allocate(self%layers(n_layers))
         do i = 1, n_layers
-            rwkv_lm%layers(i) = make_rwkv_layer(d_model)
+            self%layers(i) = rwkv_layer_type(d_model)
         end do
 
-        rwkv_lm%ln_out = layer_norm_type(d_model, layer_norm_eps)
+        self%ln_out = layer_norm_type(d_model, layer_norm_eps)
 
-        allocate(rwkv_lm%emb(d_model, vocab_size))
-        allocate(rwkv_lm%proj(vocab_size, d_model))
-    end function make_rwkv_lm
+        allocate(self%emb(d_model, vocab_size))
+        allocate(self%proj(vocab_size, d_model))
+    end function rwkv_lm_type_constructor
 
     subroutine read_params(self, file_u, iostat)
         class(rwkv_lm_type), intent(inout) :: self
@@ -99,7 +102,7 @@ contains
         read(u) vocab_size
         read(u) n_layers
 
-        model = make_rwkv_lm(d_model, vocab_size, n_layers)
+        model = rwkv_lm_type(d_model, vocab_size, n_layers)
 
         call model%read_params(u, status)
 
