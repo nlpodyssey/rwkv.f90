@@ -1,6 +1,6 @@
 # RWKV.f90
 
-RWKV.f90 is a port of the original [RWKV-LM](https://github.com/BlinkDL/RWKV-LM), an open-source large language model initially developed in Python, into Fortran. Known for its robust capabilities in scientific and engineering computations, the primary focus of this project is to explore the potential of Fortran within the realm of Artificial Intelligence.
+RWKV.f90 is a port of the original [RWKV-LM](https://github.com/BlinkDL/RWKV-LM), an open-source large language model initially developed in Python, into Fortran. Renowned for its robust capabilities in scientific and engineering computations, the primary focus of this project is to explore the potential of Fortran within the realm of Artificial Intelligence.
 
 Please note that this is an ongoing project and we welcome contributions.
 
