@@ -120,7 +120,7 @@ contains
         type(layer_state_type), intent(inout) :: state
 
         integer :: i, n
-        real(sp), dimension(self%dm, size(x, 2)) :: xx, kx, vx, rx, k, v, r, rwkv, out
+        real(sp), dimension(self%dm, size(x, 2)) :: xx, kx, vx, rx, k, v, r, sx, out
         real(sp), dimension(self%dm) :: ww, p, e1, e2, a, b
 
         n = size(x, 2)
@@ -135,16 +135,14 @@ contains
 
         k = matmul(self%wk, kx)
         v = matmul(self%wv, vx)
-        r = matmul(self%wr, rx)
+        r = sigmoid(matmul(self%wr, rx))
 
         do i = 1, n
             ww = k(:,i) + self%tf
             p = max(state%att_pp, ww)
             e1 = exp(state%att_pp - p)
             e2 = exp(ww - p)
-            a = e1 * state%att_aa + e2 * v(:,i)
-            b = e1 * state%att_bb + e2
-            rwkv(:,i) = sigmoid(r(:,i)) * (a / b)
+            sx(:,i) = (e1 * state%att_aa + e2 * v(:,i)) / (e1 * state%att_bb + e2)
 
             ww = state%att_pp + self%td
             p = max(ww, k(:,i))
@@ -158,7 +156,7 @@ contains
             state%att_pp = p
         end do
 
-        out = matmul(self%wo, rwkv)
+        out = matmul(self%wo, r * sx)
 
     end function
 
