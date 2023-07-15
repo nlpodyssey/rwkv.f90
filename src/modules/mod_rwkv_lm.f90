@@ -11,7 +11,6 @@ module mod_rwkv_lm
     public rwkv_lm_type, load_rwkv_lm_model
 
     real(sp), parameter :: layer_norm_eps = 1.0e-5
-    integer, parameter :: rescale_layer = 6
 
     type :: rwkv_lm_type
         integer :: d_model, vocab_size, n_layers
@@ -134,10 +133,6 @@ contains
 
         do i = 1, size(self%layers)
             encoded = self%layers(i)%forward(encoded, state%layers(i))
-
-            if (mod(i, rescale_layer) == 0) then
-                encoded = encoded * 0.5
-            end if
         end do
 
         output = matmul(self%proj, self%ln_out%forward(encoded))
@@ -164,10 +159,6 @@ contains
 
         do i = 1, size(self%layers)
             encoded = self%layers(i)%forward(encoded, state%layers(i))
-
-            if (mod(i, rescale_layer) == 0) then
-                encoded = encoded * 0.5
-            end if
         end do
 
         last_encoded = encoded(:, size(encoded, 2))

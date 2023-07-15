@@ -18,7 +18,7 @@ func main() {
 	if len(os.Args) < 2 {
 		panic("missing model filename")
 	}
-	if err := convert(os.Args[1], 6); err != nil {
+	if err := convert(os.Args[1]); err != nil {
 		panic(err)
 	}
 }
@@ -211,22 +211,20 @@ func (r *rwkvLmType) write(w io.Writer) error {
 	return nil
 }
 
-func convert(filename string, rescaleLayer int) error {
+func convert(filename string) error {
 	c := converter{
-		inFilename:   filename,
-		rescaleLayer: rescaleLayer,
+		inFilename: filename,
 	}
 	return c.run()
 }
 
 type converter struct {
-	inFilename   string
-	nLayers      int
-	rescaleLayer int
-	dm           int
-	vocabSize    int
-	model        rwkvLmType
-	params       paramsMap
+	inFilename string
+	nLayers    int
+	dm         int
+	vocabSize  int
+	model      rwkvLmType
+	params     paramsMap
 }
 
 func (c *converter) run() error {
@@ -419,7 +417,6 @@ func (c *converter) convBlock(id int, params paramsMap) (_ rwkvLayerType, err er
 
 func (c *converter) convChanMix(id int, params paramsMap) (channelMixType, error) {
 	dm := c.dm
-	outScale := math.Pow(2, float64(id/c.rescaleLayer))
 
 	wk, err := c.fetchParamToMatrix(params, "key.weight", [2]int{dm * 4, dm})
 	if err != nil {
@@ -434,11 +431,6 @@ func (c *converter) convChanMix(id int, params paramsMap) (channelMixType, error
 	wv, err := c.fetchParamToMatrix(params, "value.weight", [2]int{dm, dm * 4})
 	if err != nil {
 		return channelMixType{}, fmt.Errorf("failed to convert wv weight: %w", err)
-	}
-	if outScale != 1 {
-		for i := range wv.data {
-			wv.data[i] *= float32(1 / outScale)
-		}
 	}
 
 	tmk, err := c.fetchParamToSqueezedVector(params, "time_mix_k", dm)
@@ -462,7 +454,6 @@ func (c *converter) convChanMix(id int, params paramsMap) (channelMixType, error
 
 func (c *converter) convTimeMix(id int, params paramsMap) (timeMixType, error) {
 	dm := c.dm
-	outScale := math.Pow(2, float64(id/c.rescaleLayer))
 
 	wk, err := c.fetchParamToMatrix(params, "key.weight", [2]int{dm, dm})
 	if err != nil {
@@ -477,11 +468,6 @@ func (c *converter) convTimeMix(id int, params paramsMap) (timeMixType, error) {
 	wo, err := c.fetchParamToMatrix(params, "output.weight", [2]int{dm, dm})
 	if err != nil {
 		return timeMixType{}, fmt.Errorf("failed to convert output weight: %w", err)
-	}
-	if outScale != 1 {
-		for i := range wo.data {
-			wo.data[i] *= float32(1 / outScale)
-		}
 	}
 
 	wv, err := c.fetchParamToMatrix(params, "value.weight", [2]int{dm, dm})
