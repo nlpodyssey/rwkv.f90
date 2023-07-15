@@ -2,6 +2,7 @@
 ! Released under the MIT License. See LICENSE file for full license information.
 
 module mod_stats
+    use mod_real_precision
     implicit none
     private
     public :: sample_from_multinomial
@@ -10,11 +11,11 @@ contains
 
     function sample_from_multinomial(probs, num_samples) result(sampled_indices)
         implicit none
-        real, dimension(:), intent(in) :: probs
+        real(sp), dimension(:), intent(in) :: probs
         integer, intent(in) :: num_samples
         integer, allocatable :: sampled_indices(:)
         integer :: n, i, j
-        real :: p, cum_sum
+        real(sp) :: p, cum_sum
         logical, dimension(size(probs)) :: already_sampled
 
         n = size(probs)

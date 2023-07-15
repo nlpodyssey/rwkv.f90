@@ -10,7 +10,7 @@ module mod_rwkv_lm
     private
     public rwkv_lm_type, load_rwkv_lm_model
 
-    real, parameter :: layer_norm_eps = 1.0e-5
+    real(sp), parameter :: layer_norm_eps = 1.0e-5
     integer, parameter :: rescale_layer = 6
 
     type :: rwkv_lm_type
