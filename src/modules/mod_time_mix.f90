@@ -142,7 +142,9 @@ contains
             p = max(state%att_pp, ww)
             e1 = exp(state%att_pp - p)
             e2 = exp(ww - p)
-            sx(:,i) = (e1 * state%att_aa + e2 * v(:,i)) / (e1 * state%att_bb + e2)
+            a = e1 * state%att_aa + e2 * v(:,i)
+            b = e1 * state%att_bb + e2
+            sx(:,i) =  a / b
 
             ww = state%att_pp + self%td
             p = max(ww, k(:,i))
