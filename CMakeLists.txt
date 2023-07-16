@@ -23,6 +23,7 @@ set(LIB_SOURCES
         src/modules/mod_trie_tokenizer.f90
         src/modules/mod_prompt_utils.f90
         src/modules/mod_generation.f90
+        src/modules/mod_arr_ops_broadcasting.f90
         )
 
 add_library(${PROJECT_NAME}_lib ${LIB_SOURCES})
