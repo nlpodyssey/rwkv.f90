@@ -50,7 +50,7 @@ elseif(BLAS_LIBRARY STREQUAL "OpenBLAS")
 elseif(BLAS_LIBRARY STREQUAL "" OR BLAS_LIBRARY STREQUAL "Fortran")
     message(STATUS "No external BLAS library specified. Relying on compiler's native capabilities (slow).")
 else()
-    message(FATAL_ERROR "Invalid BLAS library choice. Available options: accelerate, openblas")
+    message(FATAL_ERROR "Invalid BLAS library choice. Available options (case sensitive): Accelerate, OpenBLAS")
 endif()
 
 add_library(${PROJECT_NAME}_lib ${LIB_SOURCES})
