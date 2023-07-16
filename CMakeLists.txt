@@ -10,6 +10,7 @@ link_directories(/opt/homebrew/opt/openblas/lib) # Set OpenBLAS library path
 set(LIB_SOURCES
         src/modules/mod_essentials.f90
         src/modules/mod_real_precision.f90
+        src/modules/mod_arr_ops_broadcasting.f90
         src/modules/mod_stats.f90
         src/modules/mod_functions.f90
         src/modules/mod_state.f90
