@@ -3,9 +3,13 @@ project(rwkv)
 
 enable_language(Fortran)
 
-set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -std=f2018 -fall-intrinsics -ffree-line-length-none -O3 -ffast-math -funroll-loops -fopenmp -fexternal-blas")
+if(NOT DEFINED ENV{FC})
+    set(ENV{FC} gfortran)
+endif()
 
-link_directories(/opt/homebrew/opt/openblas/lib) # Set OpenBLAS library path
+message(STATUS "Fortran compiler: $ENV{FC}")
+
+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -std=f2018 -fall-intrinsics -ffree-line-length-none -O3 -ffast-math -funroll-loops -fopenmp -lpthread")
 
 set(LIB_SOURCES
         src/modules/mod_essentials.f90
@@ -24,17 +28,37 @@ set(LIB_SOURCES
         src/modules/mod_trie_tokenizer.f90
         src/modules/mod_prompt_utils.f90
         src/modules/mod_generation.f90
-        src/modules/mod_arr_ops_broadcasting.f90
         )
-
-add_library(${PROJECT_NAME}_lib ${LIB_SOURCES})
-
-target_link_libraries(${PROJECT_NAME}_lib openblas) # Set OpenBLAS library path
 
 set(MAIN_SOURCES
         src/main.f90
         )
 
-add_executable(${PROJECT_NAME} ${MAIN_SOURCES})
+set(BLAS_LIBRARY "" CACHE STRING "External BLAS library to use")
 
+message(STATUS "BLAS library: ${BLAS_LIBRARY}")
+
+if(BLAS_LIBRARY STREQUAL "Accelerate")
+    message(STATUS "Using Accelerate library")
+    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fexternal-blas")
+elseif(BLAS_LIBRARY STREQUAL "OpenBLAS")
+    message(STATUS "Using OpenBLAS library")
+    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fexternal-blas")
+    # Specify the directory where OpenBLAS library is located.
+    # Modify this according to your actual OpenBLAS installation path.
+    link_directories(/opt/homebrew/opt/openblas/lib)
+elseif(BLAS_LIBRARY STREQUAL "" OR BLAS_LIBRARY STREQUAL "Fortran")
+    message(STATUS "No external BLAS library specified. Relying on compiler's native capabilities (slow).")
+else()
+    message(FATAL_ERROR "Invalid BLAS library choice. Available options: accelerate, openblas")
+endif()
+
+add_library(${PROJECT_NAME}_lib ${LIB_SOURCES})
+add_executable(${PROJECT_NAME} ${MAIN_SOURCES})
 target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME}_lib)
+
+if(BLAS_LIBRARY STREQUAL "accelerate")
+    target_link_options(${PROJECT_NAME}_lib PUBLIC -framework accelerate)
+elseif(BLAS_LIBRARY STREQUAL "openblas")
+    target_link_libraries(${PROJECT_NAME}_lib openblas)
+endif()

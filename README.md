@@ -48,6 +48,24 @@ cmake ..
 make
 ```
 
+### 3.1 Choosing a BLAS Implementation
+
+The underlying BLAS (Basic Linear Algebra Subprograms) implementation that's used for matrix multiplication operations (`matmul`) can be chosen by providing the `-DBLAS_LIBRARY` flag during the CMake configuration step.
+
+Three options are available:
+
+- `DBLAS_LIBRARY=OpenBLAS`: This utilizes the OpenBLAS library, which is an open-source implementation of the BLAS API. Specify in the `CMakeList.txt` the directory where OpenBLAS library is located.
+- `DBLAS_LIBRARY=Accelerate`: This leverages the Apple Accelerate Framework, which is highly optimized for Apple hardware.
+- `DBLAS_LIBRARY=Fortran` or leaving it unset: This defaults to using the Fortran's intrinsic matmul function, which allows the Fortran compiler to handle matrix operations without an external library.
+
+To select an option, include the relevant flag when running `cmake`. For example, to use the OpenBLAS library, you would run:
+
+```console
+cmake -DBLAS_LIBRARY=openblas ..
+```
+
+By not specifying a `-DBLAS_LIBRARY` flag or setting it to `Fortran`, the build will rely on the intrinsic `matmul` function provided by the compiler (resulting in a slow execution).
+
 ## 4. Run the Project
 
 Once the project is built, you can now run it. The following command also colors stderr outputs in red for better error visibility. Adjust the command as necessary, according to your downloaded and converted model name:
