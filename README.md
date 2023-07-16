@@ -61,7 +61,7 @@ Three options are available:
 To select an option, include the relevant flag when running `cmake`. For example, to use the OpenBLAS library, you would run:
 
 ```console
-cmake -DBLAS_LIBRARY=openblas ..
+cmake -DBLAS_LIBRARY=OpenBLAS ..
 ```
 
 By not specifying a `-DBLAS_LIBRARY` flag or setting it to `Fortran`, the build will rely on the intrinsic `matmul` function provided by the compiler (resulting in a slow execution).
