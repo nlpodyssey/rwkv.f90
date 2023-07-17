@@ -97,15 +97,16 @@ contains
         in_generation = .false.
     end subroutine
 
-    subroutine apply_temperature(logits, temp)
+    pure subroutine apply_temperature(logits, temp)
         real(sp), intent(inout) :: logits(:)
         real(sp), intent(in) :: temp
+        character(len=256) :: errmsg
 
         integer :: i
 
         if (temp < 0.0 .or. temp > 1.0) then
-            print*, "Invalid temperature value: ", temp, ". Must be between 0 and 1"
-            error stop
+            errmsg = real_to_str(temp)
+            error stop "Invalid temperature value: "//trim(adjustl(errmsg))//". Must be between 0 and 1"
         end if
 
         if (temp == 0) then
