@@ -7,7 +7,7 @@ module mod_essentials
 
 contains
 
-    function real_to_str(d)
+    pure function real_to_str(d)
         real, intent(in) :: d
         character(:), allocatable :: real_to_str
         character(len=32) :: temp_str

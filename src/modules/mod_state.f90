@@ -25,12 +25,12 @@ module mod_state
     
 contains
 
-    type(state_type) function state_constructor(d_model, n_layers) result(self)
+    pure type(state_type) function state_constructor(d_model, n_layers) result(self)
         integer, intent(in) :: d_model, n_layers
         integer :: i
 
         if (d_model <= 0 .or. n_layers <= 0) then
-            stop "Error: n_layers and d_model must be positive integers."
+            error stop "Error: n_layers and d_model must be positive integers."
         end if
 
         allocate(self%layers(n_layers))

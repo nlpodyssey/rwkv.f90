@@ -32,7 +32,7 @@ module mod_arr_ops_broadcasting
 
 contains
 
-    function prod_1d_2d(a, b) result(c)
+    pure function prod_1d_2d(a, b) result(c)
         real(sp), intent(in) :: a(:)
         real(sp), intent(in) :: b(:,:)
         real(sp) :: c(size(b, 1), size(b, 2))
@@ -45,7 +45,7 @@ contains
         end do
     end function
 
-    function prod_2d_1d(a, b) result(c)
+    pure function prod_2d_1d(a, b) result(c)
         real(sp), intent(in) :: a(:,:)
         real(sp), intent(in) :: b(:)
         real(sp) :: c(size(a, 1), size(a, 2))
@@ -58,7 +58,7 @@ contains
         end do
     end function
 
-    function div_1d_2d(a, b) result(c)
+    pure function div_1d_2d(a, b) result(c)
         real(sp), intent(in) :: a(:)
         real(sp), intent(in) :: b(:,:)
         real(sp) :: c(size(b, 1), size(b, 2))
@@ -71,7 +71,7 @@ contains
         end do
     end function
 
-    function div_2d_1d(a, b) result(c)
+    pure function div_2d_1d(a, b) result(c)
         real(sp), intent(in) :: a(:,:)
         real(sp), intent(in) :: b(:)
         real(sp) :: c(size(a, 1), size(a, 2))
@@ -84,7 +84,7 @@ contains
         end do
     end function
 
-    function add_1d_2d(a, b) result(c)
+    pure function add_1d_2d(a, b) result(c)
         real(sp), intent(in) :: a(:)
         real(sp), intent(in) :: b(:,:)
         real(sp) :: c(size(b, 1), size(b, 2))
@@ -97,7 +97,7 @@ contains
         end do
     end function
 
-    function add_2d_1d(a, b) result(c)
+    pure function add_2d_1d(a, b) result(c)
         real(sp), intent(in) :: a(:,:)
         real(sp), intent(in) :: b(:)
         real(sp) :: c(size(a, 1), size(a, 2))
@@ -110,7 +110,7 @@ contains
         end do
     end function
 
-    function sub_1d_2d(a, b) result(c)
+    pure function sub_1d_2d(a, b) result(c)
         real(sp), intent(in) :: a(:)
         real(sp), intent(in) :: b(:,:)
         real(sp) :: c(size(b, 1), size(b, 2))
@@ -123,7 +123,7 @@ contains
         end do
     end function
 
-    function sub_2d_1d(a, b) result(c)
+    pure function sub_2d_1d(a, b) result(c)
         real(sp), intent(in) :: a(:,:)
         real(sp), intent(in) :: b(:)
         real(sp) :: c(size(a, 1), size(a, 2))

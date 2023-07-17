@@ -9,7 +9,7 @@ module mod_prompt_utils
 contains
 
     ! generate_prompt generates a prompt optimized for rwkv-4-world
-    function generate_prompt(instruction, input)
+    pure function generate_prompt(instruction, input)
         character(len=*), intent(in) :: instruction
         character(len=*), optional, intent(in) :: input
         character(:), allocatable :: generate_prompt
