@@ -27,6 +27,7 @@ program main
     call get_arguments(tokenizer_filename, model_filename)
     call load_files(tokenizer_filename, model_filename, tokenizer, model)
     call precompute_layer_norm_embeddings(model)
+    call warm_model(model)
     call run_chat_example(model, tokenizer, gen_opts)
 
 contains
@@ -96,6 +97,30 @@ contains
         call system_clock(count=t1)
         model%emb = layer_norm_2d(model%emb, model%ln_emb%g, model%ln_emb%b, model%ln_emb%eps)
         model%precomputed_ln_emb = .true.
+        call system_clock(count=t2)
+        write(stderr,'(a)') "    done. (" // real_to_str(real(t2-t1)/count_rate) // "s)"
+    end subroutine
+
+    subroutine warm_model(model)
+        use mod_state, only: state_type
+        type(rwkv_lm_type), intent(in) :: model
+
+        type(state_type) :: state
+        integer :: inputs(13)
+        real(sp), allocatable :: logits(:)
+
+        integer(8) :: count_rate, t1, t2
+
+        call system_clock(count_rate=count_rate)
+
+        state = model%init_state()
+
+        ! A simple sentence to warm up the model
+        inputs = [53648, 59, 300, 47284, 57192, 4811, 32438, 4833, 22590, 39043, 261, 53671, 59] ! Token ids from rwkv_vocab_v20230424.csv
+
+        write(stderr,'(a,i0,a)') "> Model warm up with ", size(inputs), " tokens..."
+        call system_clock(count=t1)
+        logits = model%forward_batch(inputs, state)
         call system_clock(count=t2)
         write(stderr,'(a)') "    done. (" // real_to_str(real(t2-t1)/count_rate) // "s)"
     end subroutine
