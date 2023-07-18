@@ -43,18 +43,25 @@ contains
         max_index = maxloc(x, dim=1)
     end function
 
-    function layer_norm_2d(x, g, b, eps) result(y)
+    pure function layer_norm_2d(x, g, b, eps) result(y)
         real(sp), intent(in) :: x(:,:), g(:), b(:), eps
+
         real(sp) :: y(size(x,1),size(x,2))
-        real(sp) :: mean(size(x,2)), variance, inv_sqrt_variance(size(x,2))
-        integer :: i
-        do concurrent (i = 1:size(x,2))
-            mean(i) = sum(x(:,i)) / size(x,1)
-            variance = sum((x(:,i) - mean(i))**2) / size(x,1)
-            inv_sqrt_variance(i) = 1.0 / sqrt(variance + eps)
-        end do
-        do concurrent (i = 1:size(x,2))
-            y(:,i) = g * (x(:,i) - mean(i)) * inv_sqrt_variance(i) + b
+        real(sp) :: mean(size(x,2))
+        real(sp) :: diff(size(x,1))
+        real(sp) :: variance
+
+        integer :: input_size, batch_size, i
+
+        input_size = size(x, 1)
+        batch_size = size(x, 2)
+
+        mean = sum(x, dim=1) / input_size
+
+        do concurrent (i = 1:batch_size)
+            diff = x(:,i) - mean(i)
+            variance = sum(diff**2) / input_size
+            y(:,i) = diff / sqrt(variance + eps) * g + b
         end do
     end function
 
