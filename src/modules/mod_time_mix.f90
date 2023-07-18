@@ -122,38 +122,46 @@ contains
 
         integer :: i, n
         real(sp), dimension(self%dm, size(x, 2)) :: xx, k, v, r, sx, out
-        real(sp), dimension(self%dm) :: ww, p, e1, e2, a, b
-
-        n = size(x, 2)
+        real(sp), dimension(self%dm) :: ww, p, e1, e2, a, b, aa, bb, pp
 
         xx = token_shift(state%att_xx, x)
 
         k = matmul(self%wk, self%mk * x + (1.0 - self%mk) * xx)
         v = matmul(self%wv, self%mv * x + (1.0 - self%mv) * xx)
-        r = sigmoid(matmul(self%wr, self%mr * x + (1.0 - self%mr) * xx))
+        r = matmul(self%wr, self%mr * x + (1.0 - self%mr) * xx)
+
+        aa = state%att_aa
+        bb = state%att_bb
+        pp = state%att_pp
+
+        n = size(x, 2)
 
         do i = 1, n
             ww = k(:,i) + self%tf
-            p = max(state%att_pp, ww)
-            e1 = exp(state%att_pp - p)
+            p = max(pp, ww)
+            e1 = exp(pp - p)
             e2 = exp(ww - p)
-            a = e1 * state%att_aa + e2 * v(:,i)
-            b = e1 * state%att_bb + e2
+            a = e1 * aa + e2 * v(:,i)
+            b = e1 * bb + e2
             sx(:,i) =  a / b
 
-            ww = state%att_pp + self%td
+            ww = pp + self%td
             p = max(ww, k(:,i))
             e1 = exp(ww - p)
             e2 = exp(k(:,i) - p)
 
-            ! Update state
-            state%att_xx = x(:,i)
-            state%att_aa = e1 * state%att_aa + e2 * v(:,i)
-            state%att_bb = e1 * state%att_bb + e2
-            state%att_pp = p
+            aa = e1 * aa + e2 * v(:,i)
+            bb = e1 * bb + e2
+            pp = p
         end do
 
-        out = matmul(self%wo, r * sx)
+        ! Update state
+        state%att_xx = x(:, n)
+        state%att_aa = aa
+        state%att_bb = bb
+        state%att_pp = pp
+
+        out = matmul(self%wo, sigmoid(r) * sx)
 
     end function
 
