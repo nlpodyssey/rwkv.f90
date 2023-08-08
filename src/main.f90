@@ -12,7 +12,6 @@ program main
     implicit none
 
     integer, parameter :: sigint = 2 ! SIGINT interrupt signal (Ctrl-C) in Unix-based systems
-    integer, parameter :: num_omp_threads = 8 ! found optimal on Apple M1 Max, 10-core CPU.
 
     character(len=128) :: tokenizer_filename, model_filename
     type(rwkv_lm_type) :: model
@@ -20,7 +19,7 @@ program main
     intrinsic signal
     type(generation_options) :: gen_opts
 
-    call omp_set_num_threads(num_omp_threads)
+
 
     call signal(sigint, handle_interrupt_signal)
 

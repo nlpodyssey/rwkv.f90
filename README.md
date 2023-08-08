@@ -71,12 +71,14 @@ By not specifying a `-DBLAS_LIBRARY` flag or setting it to `Fortran`, the build 
 Once the project is built, you can now run it. The following command also colors stderr outputs in red for better error visibility. Adjust the command as necessary, according to your downloaded and converted model name:
 
 ```console
-./rwkv ../models/rwkv_vocab_v20230424.csv ../models/<YOUR-CONVERTED-MODEL-NAME> 2> >(while read line; do echo -e "\e[01;31m$line\e[0m" >&2; done) 
+OMP_NUM_THREADS=8 ./rwkv ../models/rwkv_vocab_v20230424.csv ../models/<YOUR-CONVERTED-MODEL-NAME> 2> >(while read line; do echo -e "\e[01;31m$line\e[0m" >&2; done) 
 ```
 
 Replace `<YOUR-CONVERTED-MODEL-NAME>` with the name of your converted model file.
 
 That's all! You have successfully set up and run the rwkv.f90 project. If you encounter any issues, please raise them in the issue tracker.
+
+> Note that OMP_NUM_THREADS=8 was found to be optimal on the Apple M1 Max, a 10-core CPU.
 
 # References
 
