@@ -8,15 +8,15 @@ module mod_state
     public :: state_type, layer_state_type
 
     type :: layer_state_type
-        real(sp), allocatable :: ffn_xx(:)
-        real(sp), allocatable :: att_xx(:)
-        real(sp), allocatable :: att_aa(:)
-        real(sp), allocatable :: att_bb(:)
-        real(sp), allocatable :: att_pp(:)
+        real(sp), pointer :: ffn_xx(:) => null()
+        real(sp), pointer :: att_xx(:) => null()
+        real(sp), pointer :: att_aa(:) => null()
+        real(sp), pointer :: att_bb(:) => null()
+        real(sp), pointer :: att_pp(:) => null()
     end type
 
     type :: state_type
-        type(layer_state_type), allocatable :: layers(:)
+        type(layer_state_type), pointer :: layers(:) => null()
     end type
 
     interface state_type
@@ -47,5 +47,37 @@ contains
             self%layers(i)%att_pp = -1e30
         end do
     end function
+
+    subroutine finalize_state(self)
+        type(state_type), intent(inout) :: self
+        integer :: i
+
+        if (associated(self%layers)) then
+            do i = 1, size(self%layers)
+                if (associated(self%layers(i)%ffn_xx)) then
+                    deallocate(self%layers(i)%ffn_xx)
+                    nullify(self%layers(i)%ffn_xx)
+                end if
+                if (associated(self%layers(i)%att_xx)) then
+                    deallocate(self%layers(i)%att_xx)
+                    nullify(self%layers(i)%att_xx)
+                end if
+                if (associated(self%layers(i)%att_aa)) then
+                    deallocate(self%layers(i)%att_aa)
+                    nullify(self%layers(i)%att_aa)
+                end if
+                if (associated(self%layers(i)%att_bb)) then
+                    deallocate(self%layers(i)%att_bb)
+                    nullify(self%layers(i)%att_bb)
+                end if
+                if (associated(self%layers(i)%att_pp)) then
+                    deallocate(self%layers(i)%att_pp)
+                    nullify(self%layers(i)%att_pp)
+                end if
+            end do
+            deallocate(self%layers)
+            nullify(self%layers)
+        end if
+    end subroutine
 
 end module
