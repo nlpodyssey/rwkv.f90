@@ -1,3 +1,6 @@
+// Copyright 2023 FortAI-Hub contributors.
+// Released under the MIT License. See LICENSE file for full license information.
+
 package main
 
 import (
