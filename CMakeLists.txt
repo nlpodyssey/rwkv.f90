@@ -11,6 +11,8 @@ message(STATUS "Fortran compiler: $ENV{FC}")
 
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -std=f2018 -fall-intrinsics -ffree-line-length-none -O3 -ffast-math -funroll-loops -fopenmp -lpthread -flto -fprefetch-loop-arrays")
 
+# set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fc-prototypes") # enable to generate C prototypes
+
 set(LIB_SOURCES
         src/modules/mod_essentials.f90
         src/modules/mod_real_precision.f90
@@ -28,6 +30,7 @@ set(LIB_SOURCES
         src/modules/mod_trie_tokenizer.f90
         src/modules/mod_prompt_utils.f90
         src/modules/mod_generation.f90
+        src/lib_rwkv.f90
         )
 
 set(MAIN_SOURCES
@@ -62,3 +65,6 @@ if(BLAS_LIBRARY STREQUAL "Accelerate")
 elseif(BLAS_LIBRARY STREQUAL "OpenBLAS")
     target_link_libraries(${PROJECT_NAME}_lib openblas)
 endif()
+
+add_library(rwkvlib SHARED src/lib_rwkv.f90)
+target_link_libraries(rwkvlib ${PROJECT_NAME}_lib)
