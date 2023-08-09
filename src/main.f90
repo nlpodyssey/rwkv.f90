@@ -11,15 +11,14 @@ program main
     use mod_prompt_utils
     implicit none
 
-    integer, parameter :: sigint = 2 ! SIGINT interrupt signal (Ctrl-C) in Unix-based systems
-
     character(len=128) :: tokenizer_filename, model_filename
     type(rwkv_lm_type) :: model
     type(rwkv_tokenizer) :: tokenizer
-    intrinsic signal
     type(generation_options) :: gen_opts
 
-
+    intrinsic signal
+    integer, parameter :: sigint = 2 ! SIGINT interrupt signal (Ctrl-C) in Unix-based systems
+    logical :: in_generation, stop_generation_requested
 
     call signal(sigint, handle_interrupt_signal)
 
@@ -161,7 +160,6 @@ contains
 
         integer, allocatable :: inputs(:)
         real(sp), allocatable :: logits(:)
-        procedure(generated_token_handler), pointer :: print_generated_token
 
         integer :: i
 
@@ -184,21 +182,82 @@ contains
         call system_clock(count=t2)
         write(stderr,'(a)') "    done. (" // real_to_str(real(t2-t1)/count_rate) // "s)"
 
-        print_generated_token => print_token
-
         write(stderr,'(a)') "> Generating..."
         call system_clock(count=t1)
-        call generate_text(model, tokenizer, state, logits, opts, print_generated_token)
+        call generate_text(model, tokenizer, state, logits, opts)
         call system_clock(count=t2)
         write(stdout, '(a)') ''
         write(stderr,'(a)') "    done. (" // real_to_str(real(t2-t1)/count_rate) // "s)"
     end subroutine
 
+    subroutine generate_text(model, tokenizer, state, input_logits, opts)
+        use mod_state, only: state_type
+
+        type(rwkv_lm_type), intent(in) :: model
+        type(rwkv_tokenizer), intent(in) :: tokenizer
+        type(state_type), intent(inout) :: state
+        real(sp), intent(in) :: input_logits(:)
+        type(generation_options), intent(in) :: opts
+
+        real(sp) :: occurrence(size(model%proj, 1)) ! corresponding to the number of logits
+        real(sp), allocatable :: logits(:)
+        integer, allocatable :: sampled_indices(:)
+        integer :: i, token_id
+        integer(c_int) :: token_len
+        character(:), allocatable :: token
+        logical :: end_of_generation
+
+        occurrence = 0
+        in_generation = .true.
+        stop_generation_requested = .false.
+
+        logits = input_logits
+
+        do i = 1, opts%max_token_limit
+            if (stop_generation_requested) then
+                stop_generation_requested = .false.
+                write(stderr,'(a)') "> Stop generation due to user request."
+                exit ! forced end of generation
+            end if
+
+            token_id = generate_next_token(logits, occurrence, opts, end_of_generation)
+
+            if (end_of_generation) then
+                exit
+            end if
+
+            token = tokenizer%decode([token_id])
+
+            if (i > 1 .or. .not. is_whitespace(token)) then
+                call print_token(token)
+            end if
+
+            logits = model%forward(token_id, state)
+        end do
+
+        in_generation = .false.
+    end subroutine
+
     subroutine print_token(token)
         implicit none
         character(len=*), intent(in) :: token
-        WRITE(stdout, '(a)', advance='no') token
+        write(stdout, '(a)', advance='no') token
     end subroutine
+
+    pure logical function is_whitespace(string)
+        implicit none
+        character(len=*), intent(in) :: string
+        integer :: i
+
+        is_whitespace = .true.
+
+        do i = 1, len_trim(string)
+            if (string(i:i) /= ' ' .and. string(i:i) /= char(9) .and. string(i:i) /= char(10) .and. string(i:i) /= char(13)) then
+                is_whitespace = .false.
+                exit
+            end if
+        end do
+    end function
 
     function replace_slash_n(s) result(res)
         character(len=*), intent(in) :: s
