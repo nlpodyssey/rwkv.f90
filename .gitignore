@@ -35,4 +35,5 @@
 *.out
 *.app
 build/
+output/
 *.pth*
