@@ -13,7 +13,7 @@ module lib_rwkv
     implicit none
     private
     public :: c_new_rwkv_tokenizer, deallocate_rwkv_tokenizer, c_tokenize, c_detokenize
-    public :: c_layer_state_type, c_state_type, c_init_state
+    public :: c_layer_state_type, c_state_type, c_init_state, c_deallocate_c_state
     public :: c_new_rwkv_model, deallocate_rwkv_model, c_get_d_model, c_get_num_layers, c_get_logits_size, c_forward_batch, c_forward_single
     public :: c_generation_options, generation_context_type, c_new_generation_context, c_generate_next_token
 
@@ -49,6 +49,7 @@ module lib_rwkv
     type, bind(C) :: c_state_type
         type(c_ptr) :: layers
         integer(c_int) :: num_layers
+        integer(c_int) :: d_model
     end type c_state_type
 
     interface c_state_type
@@ -223,7 +224,7 @@ contains
             print *, 'Error: c_state pointer not associated.'
         end if
 
-        call c_to_f_state(c_state, state, model%d_model)
+        call c_to_f_state(c_state, state)
 
         do i = 1, tokens_len
             x(i) = tokens(i)
@@ -258,7 +259,7 @@ contains
             print *, 'Error: c_state pointer not associated.'
         end if
 
-        call c_to_f_state(c_state, state, model%d_model)
+        call c_to_f_state(c_state, state)
 
         logits_f = model%forward_single(token, state)
 
@@ -284,17 +285,20 @@ contains
 
         allocate(c_state_type_ptr)
 
-        c_state_type_ptr = c_state_type(model%init_state())
+        c_state_type_ptr = c_state_type(model%init_state(), model%d_model)
         c_init_state = c_loc(c_state_type_ptr)
     end function
 
-    type(c_state_type) function c_state_constructor(state) result(self)
+    type(c_state_type) function c_state_constructor(state, d_model) result(self)
         use, intrinsic :: iso_c_binding
         implicit none
         type(state_type), target, intent(in) :: state
+        integer, intent(in) :: d_model
+
         type(c_layer_state_type), pointer :: temp_layers(:)
         integer :: i
 
+        self%d_model = d_model
         self%num_layers = size(state%layers)
         self%layers = c_loc(state%layers)
 
@@ -309,10 +313,9 @@ contains
         end do
     end function c_state_constructor
 
-    subroutine c_to_f_state(c_state, state, d_model)
+    subroutine c_to_f_state(c_state, state)
         type(c_state_type), intent(in) :: c_state
         type(state_type), intent(inout) :: state
-        integer, intent(in) :: d_model
 
         type(c_layer_state_type), pointer :: c_layers(:)
         integer :: i
@@ -322,12 +325,28 @@ contains
         allocate(state%layers(c_state%num_layers))
 
         do i = 1, c_state%num_layers
-            call c_f_pointer(c_layers(i)%ffn_xx, state%layers(i)%ffn_xx, [d_model])
-            call c_f_pointer(c_layers(i)%att_xx, state%layers(i)%att_xx, [d_model])
-            call c_f_pointer(c_layers(i)%att_aa, state%layers(i)%att_aa, [d_model])
-            call c_f_pointer(c_layers(i)%att_bb, state%layers(i)%att_bb, [d_model])
-            call c_f_pointer(c_layers(i)%att_pp, state%layers(i)%att_pp, [d_model])
+            call c_f_pointer(c_layers(i)%ffn_xx, state%layers(i)%ffn_xx, [c_state%d_model])
+            call c_f_pointer(c_layers(i)%att_xx, state%layers(i)%att_xx, [c_state%d_model])
+            call c_f_pointer(c_layers(i)%att_aa, state%layers(i)%att_aa, [c_state%d_model])
+            call c_f_pointer(c_layers(i)%att_bb, state%layers(i)%att_bb, [c_state%d_model])
+            call c_f_pointer(c_layers(i)%att_pp, state%layers(i)%att_pp, [c_state%d_model])
         end do
+    end subroutine
+
+    subroutine c_deallocate_c_state(c_state_ptr) bind(C, name="c_deallocate_c_state")
+        type(c_ptr), value, intent(in) :: c_state_ptr
+
+        type(c_state_type), pointer :: c_state
+        type(state_type) :: state
+
+        call c_f_pointer(c_state_ptr, c_state)
+        if (.not. associated(c_state)) return
+
+        call c_to_f_state(c_state, state)
+        call finalize_state(state)
+
+        deallocate(c_state)
+        nullify(c_state)
     end subroutine
 
     ! -------------------------------

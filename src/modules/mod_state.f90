@@ -5,7 +5,7 @@ module mod_state
     use mod_real_precision
     implicit none
     private
-    public :: state_type, layer_state_type
+    public :: state_type, layer_state_type, finalize_state
 
     type :: layer_state_type
         real(sp), pointer :: ffn_xx(:) => null()
