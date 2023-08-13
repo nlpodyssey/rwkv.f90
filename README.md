@@ -48,6 +48,12 @@ cmake ..
 make
 ```
 
+Alternatively, you can utilize the `build.sh` script, which will automatically create the `rwkv` binary in a `output/bin` folder:
+
+``console
+sh build.sh
+``
+
 ### 3.1 Choosing a BLAS Implementation
 
 The underlying BLAS (Basic Linear Algebra Subprograms) implementation that's used for matrix multiplication operations (`matmul`) can be chosen by providing the `-DBLAS_LIBRARY` flag during the CMake configuration step.
@@ -62,6 +68,12 @@ To select an option, include the relevant flag when running `cmake`. For example
 
 ```console
 cmake -DBLAS_LIBRARY=OpenBLAS ..
+```
+
+Alternatively, if you employ the build.sh script:
+
+```console
+DBLAS_LIBRARY=OpenBLAS sh build.sh
 ```
 
 By not specifying a `-DBLAS_LIBRARY` flag or setting it to `Fortran`, the build will rely on the intrinsic `matmul` function provided by the compiler (resulting in a slow execution).

@@ -2,7 +2,6 @@
 
 BUILD_DIR="build"
 OUTPUT_DIR="output"
-DBLAS_LIBRARY=""
 
 if [ -d "${BUILD_DIR}" ]; then
     echo "Removing existing ${BUILD_DIR} directory."
