@@ -11,6 +11,11 @@ module lib_rwkv
     use mod_prompt_utils
     use mod_generation
     implicit none
+    private
+    public :: c_new_rwkv_tokenizer, deallocate_rwkv_tokenizer, c_tokenize, c_detokenize
+    public :: c_layer_state_type, c_state_type, c_init_state
+    public :: c_new_rwkv_model, deallocate_rwkv_model, c_get_d_model, c_get_num_layers, c_get_logits_size, c_forward_batch, c_forward_single
+    public :: c_generation_options, generation_context_type, c_new_generation_context, c_generate_next_token
 
     ! -------------------------------
     ! Generation Bindings
