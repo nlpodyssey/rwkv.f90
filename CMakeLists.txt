@@ -9,7 +9,7 @@ endif()
 
 message(STATUS "Fortran compiler: $ENV{FC}")
 
-set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -std=f2018 -fall-intrinsics -ffree-line-length-none -O3 -ffast-math -funroll-loops -fopenmp -lpthread -flto -fprefetch-loop-arrays")
+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -std=f2018 -fall-intrinsics -ffree-line-length-none -O3 -ffast-math -funroll-loops -fopenmp -lpthread -flto -fprefetch-loop-arrays -fno-protect-parens -fno-semantic-interposition")
 
 # set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fc-prototypes") # enable to generate C prototypes
 
