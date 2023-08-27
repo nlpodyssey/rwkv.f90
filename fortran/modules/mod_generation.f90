@@ -30,7 +30,6 @@ contains
         integer :: token_id
         real(sp), allocatable :: logits(:)
         integer, allocatable :: sampled_indices(:)
-        integer :: non_zeros
 
         end_of_generation = .false.
         logits = input_logits
@@ -66,8 +65,6 @@ contains
         real(sp), intent(inout) :: logits(:)
         real(sp), intent(in) :: temp
         character(len=256) :: errmsg
-
-        integer :: i
 
         if (temp < 0.0 .or. temp > 1.0) then
             errmsg = real_to_str(temp)

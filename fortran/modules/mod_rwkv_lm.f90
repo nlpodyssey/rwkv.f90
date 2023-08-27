@@ -147,7 +147,7 @@ contains
         real(sp) :: last_encoded(self%d_model)
         real(sp), allocatable :: output(:)
 
-        integer i,j
+        integer i
 
         do concurrent (i=1:size(x))
             encoded(:,i) = self%emb(:, x(i)+1)

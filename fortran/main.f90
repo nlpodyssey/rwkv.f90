@@ -161,8 +161,6 @@ contains
         integer, allocatable :: inputs(:)
         real(sp), allocatable :: logits(:)
 
-        integer :: i
-
         integer(8) :: count_rate, t1, t2
 
         call system_clock(count_rate=count_rate)
@@ -201,9 +199,7 @@ contains
 
         real(sp) :: occurrence(size(model%proj, 1)) ! corresponding to the number of logits
         real(sp), allocatable :: logits(:)
-        integer, allocatable :: sampled_indices(:)
         integer :: i, token_id
-        integer(c_int) :: token_len
         character(:), allocatable :: token
         logical :: end_of_generation
 

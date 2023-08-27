@@ -442,18 +442,6 @@ contains
         end do
     end function
 
-    function c_to_f_logical(c_val) result(f_val)
-        use iso_c_binding, only: c_bool
-        logical(c_bool), intent(in) :: c_val
-        logical :: f_val
-
-        if (c_val .eqv. .true.) then
-            f_val = .true.
-        else
-            f_val = .false.
-        end if
-    end function
-
     function f_to_c_logical(f_val) result(c_val)
         use iso_c_binding, only: c_bool
         logical, intent(in) :: f_val

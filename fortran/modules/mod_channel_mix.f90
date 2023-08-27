@@ -92,7 +92,7 @@ contains
 
         real(sp), dimension(self%dm, size(x, 2)) :: xx, kv, rkv
         real(sp) :: r(self%dm, size(x, 2)), k(self%hidden, size(x, 2))
-        integer :: i, n
+        integer :: n
 
         n = size(x, 2)
 
