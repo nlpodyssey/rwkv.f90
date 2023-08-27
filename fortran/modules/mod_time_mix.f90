@@ -81,8 +81,7 @@ contains
         real(sp), intent(in) :: x(:)
         type(layer_state_type), intent(inout) :: state
 
-        real(sp), allocatable :: out(:)
-        real(sp), allocatable :: k(:), v(:), r(:), ww(:), p(:), e1(:), e2(:), a(:), b(:), rwkv(:)
+        real(sp), dimension(size(x)) :: k, v, r, ww, p, e1, e2, a, b, rwkv, out
 
         !$omp parallel sections
         !$omp section
