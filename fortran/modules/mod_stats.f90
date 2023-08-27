@@ -13,7 +13,7 @@ contains
         implicit none
         real(sp), dimension(:), intent(in) :: probs
         integer, intent(in) :: num_samples
-        integer, allocatable :: sampled_indices(:)
+        integer :: sampled_indices(num_samples)
         integer :: n, i, j
         real(sp) :: p, cum_sum
         logical, dimension(size(probs)) :: already_sampled
@@ -25,7 +25,6 @@ contains
             stop
         end if
 
-        allocate(sampled_indices(num_samples))
         already_sampled = .false.
 
         do i = 1, num_samples
