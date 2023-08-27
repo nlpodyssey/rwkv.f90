@@ -2,6 +2,7 @@
 ! Released under the MIT License. See LICENSE file for full license information.
 
 module mod_real_precision
-    integer, parameter :: dp = kind(1.d0) ! double precision
-    integer, parameter :: sp = selected_real_kind(p=6) ! single precision
+    use iso_fortran_env, only: real32, real64
+    integer, parameter :: dp = real64 ! double precision
+    integer, parameter :: sp = real32 ! single precision
 end module
