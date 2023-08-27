@@ -10,7 +10,7 @@ endif()
 
 message(STATUS "Fortran compiler: $ENV{FC}")
 
-set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -Wall -Wextra -Wpedantic -std=f2018 -fall-intrinsics -ffree-line-length-none")
+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -Wall -Wextra -Wpedantic -Wno-compare-reals -std=f2018 -fall-intrinsics -ffree-line-length-none")
 set(CMAKE_Fortran_FLAGS_DEBUG "-g")
 set(CMAKE_Fortran_FLAGS_RELEASE "-O3 -ffast-math -funroll-loops -fopenmp -lpthread -flto -fprefetch-loop-arrays -fno-protect-parens -fno-semantic-interposition")
 
