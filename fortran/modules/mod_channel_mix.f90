@@ -68,7 +68,8 @@ contains
         class(channel_mix_type), intent(in) :: self
         real(sp), intent(in) :: x(:)
         type(layer_state_type), intent(inout) :: state
-        real(sp), allocatable :: r(:), k(:), kv(:), rkv(:)
+        real(sp), dimension(size(x)) :: r, kv, rkv
+        real(sp) :: k(size(self%wk, 1))
 
         !$omp parallel sections
         !$omp section
