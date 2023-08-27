@@ -28,7 +28,7 @@ contains
         logical, intent(out) :: end_of_generation
 
         integer :: token_id
-        real(sp), allocatable :: logits(:)
+        real(sp) :: logits(size(input_logits))
         integer, allocatable :: sampled_indices(:)
 
         end_of_generation = .false.
