@@ -122,7 +122,8 @@ contains
         class(rwkv_lm_type), intent(in) :: self
         integer, intent(in) :: x
         type(state_type), intent(inout) :: state
-        real(sp), allocatable :: encoded(:), output(:)
+        real(sp) :: encoded(size(self%emb, 1))
+        real(sp) :: output(size(self%emb, 2))
         integer :: i
 
         encoded = self%emb(:, x+1)
