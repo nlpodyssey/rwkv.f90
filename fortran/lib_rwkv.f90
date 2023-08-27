@@ -414,8 +414,7 @@ contains
     ! Fortran<>C Conversion Functions
     ! -------------------------------
 
-    subroutine f_to_c_string(f_string, c_string) bind(c)
-        use, intrinsic :: iso_c_binding
+    subroutine f_to_c_string(f_string, c_string)
         character(len=*), intent(in) :: f_string
         character(c_char), intent(out) :: c_string(len(f_string))
         integer :: i, n
