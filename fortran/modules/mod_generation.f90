@@ -29,7 +29,9 @@ contains
 
         integer :: token_id
         real(sp) :: logits(size(input_logits))
-        integer, allocatable :: sampled_indices(:)
+        
+        integer, parameter :: num_samples = 1
+        integer :: sampled_indices(num_samples)
 
         end_of_generation = .false.
         logits = input_logits
@@ -43,7 +45,7 @@ contains
         end if
 
         if (opts%use_multinomial) then
-            sampled_indices = sample_from_multinomial(softmax_1d(logits), 1)
+            sampled_indices = sample_from_multinomial(softmax_1d(logits), num_samples)
             token_id = sampled_indices(1) - 1
         else
             token_id = argmax(softmax_1d(logits)) - 1
