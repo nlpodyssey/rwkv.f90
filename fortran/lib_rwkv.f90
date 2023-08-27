@@ -394,7 +394,7 @@ contains
         type(c_generation_options), value, intent(in) :: c_gen_opts
 
         logical :: f_end_of_generation
-        integer :: token_id
+        integer(c_int) :: token_id
 
         type(generation_context_type), pointer :: generation_context
         type(generation_options) :: gen_opts
