@@ -3,6 +3,7 @@
 
 program main
     use, intrinsic :: iso_c_binding
+    use mod_command_arguments, only: command_arguments, parse_arguments
     use mod_essentials
     use mod_real_precision
     use mod_trie_tokenizer, only : load_tokenizer => load_trie_tokenizer, rwkv_tokenizer => trie_tokenizer
@@ -11,7 +12,7 @@ program main
     use mod_prompt_utils
     implicit none
 
-    character(len=128) :: tokenizer_filename, model_filename
+    type(command_arguments) :: args
     type(rwkv_lm_type) :: model
     type(rwkv_tokenizer) :: tokenizer
     type(generation_options) :: gen_opts
@@ -20,38 +21,19 @@ program main
     integer, parameter :: sigint = 2 ! SIGINT interrupt signal (Ctrl-C) in Unix-based systems
     logical :: in_generation, stop_generation_requested
 
+    args = parse_arguments()
+
     call signal(sigint, handle_interrupt_signal)
 
-    call get_arguments(tokenizer_filename, model_filename)
-    call load_files(tokenizer_filename, model_filename, tokenizer, model)
+    call load_files(args%tokenizer, args%model, tokenizer, model)
     call precompute_layer_norm_embeddings(model)
     call warm_model(model)
     call run_chat_example(model, tokenizer, gen_opts)
 
 contains
 
-    subroutine get_arguments(tokenizer_filename, model_filename)
-        character(len=128), intent(out) :: tokenizer_filename, model_filename
-        integer :: ierr
-
-        call get_command_argument(1, tokenizer_filename, status=ierr)
-        if (ierr /= 0) then
-            write (stdout,*) 'Usage: Please provide tokenizer_filename as an argument.'
-            stop 1
-        end if
-
-        call get_command_argument(2, model_filename, status=ierr)
-        if (ierr /= 0) then
-            write (stdout,*) 'Usage: Please provide model_filename as an argument.'
-            stop 1
-        end if
-
-        model_filename = trim(model_filename)
-        tokenizer_filename = trim(tokenizer_filename)
-    end subroutine
-
     subroutine load_files(tokenizer_filename, model_filename, tokenizer, model)
-        character(len=128), intent(in) :: tokenizer_filename, model_filename
+        character(*), intent(in) :: tokenizer_filename, model_filename
         type(rwkv_tokenizer), intent(out) :: tokenizer
         type(rwkv_lm_type), intent(out) :: model
 

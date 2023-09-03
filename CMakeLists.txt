@@ -46,6 +46,7 @@ target_sources(
         PRIVATE
         modules/mod_arr_ops_broadcasting.f90
         modules/mod_channel_mix.f90
+        modules/mod_command_arguments.f90
         modules/mod_essentials.f90
         modules/mod_functions.f90
         modules/mod_generation.f90
