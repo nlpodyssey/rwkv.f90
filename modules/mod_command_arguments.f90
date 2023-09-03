@@ -11,6 +11,7 @@ module mod_command_arguments
     type :: command_arguments
         character(:), allocatable :: tokenizer
         character(:), allocatable :: model
+        character(:), allocatable :: draft_model
     end type
 
 contains
@@ -33,6 +34,10 @@ contains
                 case ('-model')
                     if (i == count) stop 'Missing value for argument ' // arg
                     args%model = get_argument(i + 1)
+                    i = i + 2
+                case ('-draft')
+                    if (i == count) stop 'Missing value for argument ' // arg
+                    args%draft_model = get_argument(i + 1)
                     i = i + 2
                 case default
                     stop 'Unknown command argument: ' // arg
