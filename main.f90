@@ -2,7 +2,6 @@
 ! Released under the MIT License. See LICENSE file for full license information.
 
 program main
-    use, intrinsic :: iso_c_binding
     use mod_command_arguments, only: command_arguments, parse_arguments
     use mod_essentials
     use mod_real_precision
@@ -25,7 +24,7 @@ program main
 
     call signal(sigint, handle_interrupt_signal)
 
-    call load_files(args%tokenizer, args%model, tokenizer, model)
+    call load_files(args%pipeline%tokenizer_filename, args%pipeline%model_filename, tokenizer, model)
     call precompute_layer_norm_embeddings(model)
     call warm_model(model)
     call run_chat_example(model, tokenizer, gen_opts)

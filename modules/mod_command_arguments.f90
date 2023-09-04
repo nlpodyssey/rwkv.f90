@@ -2,6 +2,7 @@
 ! Released under the MIT License. See LICENSE file for full license information.
 
 module mod_command_arguments
+    use mod_pipeline, only: pipeline_options
     implicit none
 
     private
@@ -9,9 +10,7 @@ module mod_command_arguments
     public :: command_arguments, parse_arguments
 
     type :: command_arguments
-        character(:), allocatable :: tokenizer
-        character(:), allocatable :: model
-        character(:), allocatable :: draft_model
+        type(pipeline_options) :: pipeline
     end type
 
 contains
@@ -29,23 +28,23 @@ contains
             select case (arg)
                 case ('-tokenizer')
                     if (i == count) stop 'Missing value for argument ' // arg
-                    args%tokenizer = get_argument(i + 1)
+                    args%pipeline%tokenizer_filename = get_argument(i + 1)
                     i = i + 2
                 case ('-model')
                     if (i == count) stop 'Missing value for argument ' // arg
-                    args%model = get_argument(i + 1)
+                    args%pipeline%model_filename = get_argument(i + 1)
                     i = i + 2
                 case ('-draft')
                     if (i == count) stop 'Missing value for argument ' // arg
-                    args%draft_model = get_argument(i + 1)
+                    args%pipeline%draft_model_filename = get_argument(i + 1)
                     i = i + 2
                 case default
                     stop 'Unknown command argument: ' // arg
             end select
         end do
 
-        if (.not. allocated(args%tokenizer)) stop 'Missing argument: -tokenizer'
-        if (.not. allocated(args%model)) stop 'Missing argument: -model'
+        if (.not. allocated(args%pipeline%tokenizer_filename)) stop 'Missing argument: -tokenizer'
+        if (.not. allocated(args%pipeline%model_filename)) stop 'Missing argument: -model'
     end function
 
     function get_argument(number) result (arg)
