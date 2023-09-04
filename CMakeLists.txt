@@ -60,6 +60,7 @@ target_sources(
         modules/mod_state.f90
         modules/mod_stats.f90
         modules/mod_time_mix.f90
+        modules/mod_timer.f90
         modules/mod_token_shift.f90
         modules/mod_trie_tokenizer.f90
         PUBLIC
