@@ -54,6 +54,7 @@ target_sources(
         modules/mod_linear.f90
         modules/mod_pipeline.f90
         modules/mod_prompt_utils.f90
+        modules/mod_readline.f90
         modules/mod_real_precision.f90
         modules/mod_rwkv_layer.f90
         modules/mod_rwkv_lm.f90
