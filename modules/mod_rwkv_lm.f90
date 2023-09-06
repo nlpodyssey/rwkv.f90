@@ -6,6 +6,7 @@ module mod_rwkv_lm
     use mod_state
     use mod_layer_norm
     use mod_rwkv_layer
+    use mod_functions, only : layer_norm_2d
     implicit none
     private
     public rwkv_lm_type, load_rwkv_lm_model
@@ -23,6 +24,7 @@ module mod_rwkv_lm
     contains
         procedure :: read_params
         procedure :: init_state
+        procedure :: precompute_layer_norm_embeddings
         procedure, pass :: forward_single
         procedure, pass :: forward_batch
         generic :: forward => forward_single, forward_batch
@@ -117,6 +119,12 @@ contains
         type(state_type) :: state
         state = state_type(self%d_model, self%n_layers)
     end function
+
+    pure subroutine precompute_layer_norm_embeddings(self)
+        class(rwkv_lm_type), intent(inout) :: self
+        self%emb = layer_norm_2d(self%emb, self%ln_emb%g, self%ln_emb%b, self%ln_emb%eps)
+        self%precomputed_ln_emb = .true.
+    end subroutine
 
     function forward_single(self, x, state) result(output)
         class(rwkv_lm_type), intent(in) :: self
