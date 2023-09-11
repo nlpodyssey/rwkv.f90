@@ -21,11 +21,12 @@ module mod_generation
 
 contains
 
-    function generate_next_token(input_logits, occurrence, opts, end_of_generation) result(token_id)
+    function generate_next_token(input_logits, occurrence, opts, end_of_generation, output_probs) result(token_id)
         real(sp), intent(in) :: input_logits(:)
-        real(sp), intent(inout) :: occurrence(:) ! corresponding to the logits
+        real(sp), intent(inout) :: occurrence(size(input_logits))
         type(generation_options), intent(in) :: opts
         logical, intent(out) :: end_of_generation
+        real(sp), intent(out), optional :: output_probs(size(input_logits))
 
         integer :: token_id
         real(sp) :: logits(size(input_logits))
@@ -44,11 +45,14 @@ contains
             call apply_temperature(logits, opts%temp)
         end if
 
+        logits = softmax_1d(logits)
+        if (present(output_probs)) output_probs = logits
+
         if (opts%use_multinomial) then
-            sampled_indices = sample_from_multinomial(softmax_1d(logits), num_samples)
+            sampled_indices = sample_from_multinomial(logits, num_samples)
             token_id = sampled_indices(1) - 1
         else
-            token_id = argmax(softmax_1d(logits)) - 1
+            token_id = argmax(logits) - 1
         end if
 
         if (token_id == 0) then

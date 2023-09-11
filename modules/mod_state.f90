@@ -5,7 +5,7 @@ module mod_state
     use mod_real_precision
     implicit none
     private
-    public :: state_type, layer_state_type, finalize_state
+    public :: state_type, layer_state_type, copy_state, swap_states, finalize_states
 
     type :: layer_state_type
         real(sp), pointer :: ffn_xx(:) => null()
@@ -13,10 +13,14 @@ module mod_state
         real(sp), pointer :: att_aa(:) => null()
         real(sp), pointer :: att_bb(:) => null()
         real(sp), pointer :: att_pp(:) => null()
+    contains
+        procedure, private :: finalize => layer_state_finalize
     end type
 
     type :: state_type
         type(layer_state_type), pointer :: layers(:) => null()
+    contains
+        procedure :: finalize => state_finalize
     end type
 
     interface state_type
@@ -48,36 +52,68 @@ contains
         end do
     end function
 
-    subroutine finalize_state(self)
-        type(state_type), intent(inout) :: self
+    pure subroutine state_finalize(self)
+        class(state_type), intent(inout) :: self
         integer :: i
-
-        if (associated(self%layers)) then
-            do i = 1, size(self%layers)
-                if (associated(self%layers(i)%ffn_xx)) then
-                    deallocate(self%layers(i)%ffn_xx)
-                    nullify(self%layers(i)%ffn_xx)
-                end if
-                if (associated(self%layers(i)%att_xx)) then
-                    deallocate(self%layers(i)%att_xx)
-                    nullify(self%layers(i)%att_xx)
-                end if
-                if (associated(self%layers(i)%att_aa)) then
-                    deallocate(self%layers(i)%att_aa)
-                    nullify(self%layers(i)%att_aa)
-                end if
-                if (associated(self%layers(i)%att_bb)) then
-                    deallocate(self%layers(i)%att_bb)
-                    nullify(self%layers(i)%att_bb)
-                end if
-                if (associated(self%layers(i)%att_pp)) then
-                    deallocate(self%layers(i)%att_pp)
-                    nullify(self%layers(i)%att_pp)
-                end if
-            end do
-            deallocate(self%layers)
-            nullify(self%layers)
-        end if
+        if (.not. associated(self%layers)) return
+        do concurrent (i = 1:size(self%layers))
+            call self%layers(i)%finalize()
+        end do
+        deallocate(self%layers)
+        nullify(self%layers)
     end subroutine
 
+    pure subroutine layer_state_finalize(self)
+        class(layer_state_type), intent(inout) :: self
+        call finalize_layer_state_member(self%ffn_xx)
+        call finalize_layer_state_member(self%att_xx)
+        call finalize_layer_state_member(self%att_aa)
+        call finalize_layer_state_member(self%att_bb)
+        call finalize_layer_state_member(self%att_pp)
+    end subroutine
+    
+    pure subroutine finalize_layer_state_member(p)
+        real(sp), pointer, intent(inout) :: p(:)
+        deallocate(p)
+        nullify(p)
+    end subroutine
+
+    pure subroutine copy_state(source, dest)
+        type(state_type), intent(in) :: source
+        type(state_type), intent(inout) :: dest
+        integer :: i
+
+        if (.not. associated(source%layers)) then
+            call dest%finalize()
+            return
+        end if
+
+        if (.not. associated(dest%layers)) then
+            dest = state_type(size(source%layers(1)%ffn_xx), size(source%layers))
+        end if
+
+        do concurrent (i = 1:size(source%layers))
+            dest%layers(i)%ffn_xx = source%layers(i)%ffn_xx
+            dest%layers(i)%att_xx = source%layers(i)%att_xx
+            dest%layers(i)%att_aa = source%layers(i)%att_aa
+            dest%layers(i)%att_bb = source%layers(i)%att_bb
+            dest%layers(i)%att_pp = source%layers(i)%att_pp
+        end do
+    end subroutine
+
+    pure subroutine swap_states(a, b)
+        type(state_type), intent(inout) :: a, b
+        type(state_type) :: t
+        t = a
+        a = b
+        b = t
+    end subroutine
+
+    pure subroutine finalize_states(states)
+        type(state_type), intent(inout) :: states(:)
+        integer :: i
+        do concurrent (i = 1:size(states))
+            call states(i)%finalize()
+        end do
+    end subroutine
 end module

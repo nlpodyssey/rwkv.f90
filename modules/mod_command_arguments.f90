@@ -27,24 +27,24 @@ contains
 
             select case (arg)
                 case ('-tokenizer')
-                    if (i == count) stop 'Missing value for argument ' // arg
+                    if (i == count) error stop 'Missing value for argument ' // arg
                     args%pipeline%tokenizer_filename = get_argument(i + 1)
                     i = i + 2
                 case ('-model')
-                    if (i == count) stop 'Missing value for argument ' // arg
+                    if (i == count) error stop 'Missing value for argument ' // arg
                     args%pipeline%model_filename = get_argument(i + 1)
                     i = i + 2
                 case ('-draft')
-                    if (i == count) stop 'Missing value for argument ' // arg
+                    if (i == count) error stop 'Missing value for argument ' // arg
                     args%pipeline%draft_model_filename = get_argument(i + 1)
                     i = i + 2
                 case default
-                    stop 'Unknown command argument: ' // arg
+                    error stop 'Unknown command argument: ' // arg
             end select
         end do
 
-        if (.not. allocated(args%pipeline%tokenizer_filename)) stop 'Missing argument: -tokenizer'
-        if (.not. allocated(args%pipeline%model_filename)) stop 'Missing argument: -model'
+        if (.not. allocated(args%pipeline%tokenizer_filename)) error stop 'Missing argument: -tokenizer'
+        if (.not. allocated(args%pipeline%model_filename)) error stop 'Missing argument: -model'
     end function
 
     function get_argument(number) result (arg)
@@ -54,7 +54,7 @@ contains
         character(4096) :: raw
 
         call get_command_argument(number, raw, length, status)
-        if (status /= 0) stop 'Failed to get command line arguments'
+        if (status /= 0) error stop 'Failed to get command line arguments'
         arg = raw(:length)
     end function
 

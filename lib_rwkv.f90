@@ -232,7 +232,7 @@ contains
 
         logits_f = model%forward_batch(x, state)
 
-        if (logits_len > size(logits)) stop 'Error: logits array in caller is too small.'
+        if (logits_len > size(logits)) error stop 'Error: logits array in caller is too small.'
 
         logits(1:logits_len) = logits_f
     end subroutine
@@ -263,7 +263,7 @@ contains
 
         logits_f = model%forward_single(token, state)
 
-        if (logits_len > size(logits)) stop 'Error: logits array in caller is too small.'
+        if (logits_len > size(logits)) error stop 'Error: logits array in caller is too small.'
 
         logits(1:logits_len) = logits_f
     end subroutine
@@ -343,7 +343,7 @@ contains
         if (.not. associated(c_state)) return
 
         call c_to_f_state(c_state, state)
-        call finalize_state(state)
+        call state%finalize()
 
         deallocate(c_state)
         nullify(c_state)
