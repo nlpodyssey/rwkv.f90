@@ -3,11 +3,11 @@
 
 program main
     use mod_command_arguments, only: command_arguments, parse_arguments
-    use mod_pipeline, only: run_pipeline
+    use mod_inference, only: run_inference
     implicit none
 
     type(command_arguments) :: args
 
     args = parse_arguments()
-    call run_pipeline(args%pipeline)
+    call run_inference(args%inference)
 end program

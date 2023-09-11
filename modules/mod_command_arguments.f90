@@ -2,7 +2,7 @@
 ! Released under the MIT License. See LICENSE file for full license information.
 
 module mod_command_arguments
-    use mod_pipeline, only: pipeline_options
+    use mod_inference, only: inference_options
     implicit none
 
     private
@@ -10,7 +10,7 @@ module mod_command_arguments
     public :: command_arguments, parse_arguments
 
     type :: command_arguments
-        type(pipeline_options) :: pipeline
+        type(inference_options) :: inference
     end type
 
 contains
@@ -28,23 +28,23 @@ contains
             select case (arg)
                 case ('-tokenizer')
                     if (i == count) error stop 'Missing value for argument ' // arg
-                    args%pipeline%tokenizer_filename = get_argument(i + 1)
+                    args%inference%tokenizer_filename = get_argument(i + 1)
                     i = i + 2
                 case ('-model')
                     if (i == count) error stop 'Missing value for argument ' // arg
-                    args%pipeline%model_filename = get_argument(i + 1)
+                    args%inference%model_filename = get_argument(i + 1)
                     i = i + 2
                 case ('-draft')
                     if (i == count) error stop 'Missing value for argument ' // arg
-                    args%pipeline%draft_model_filename = get_argument(i + 1)
+                    args%inference%draft_model_filename = get_argument(i + 1)
                     i = i + 2
                 case default
                     error stop 'Unknown command argument: ' // arg
             end select
         end do
 
-        if (.not. allocated(args%pipeline%tokenizer_filename)) error stop 'Missing argument: -tokenizer'
-        if (.not. allocated(args%pipeline%model_filename)) error stop 'Missing argument: -model'
+        if (.not. allocated(args%inference%tokenizer_filename)) error stop 'Missing argument: -tokenizer'
+        if (.not. allocated(args%inference%model_filename)) error stop 'Missing argument: -model'
     end function
 
     function get_argument(number) result (arg)

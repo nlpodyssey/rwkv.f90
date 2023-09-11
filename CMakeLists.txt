@@ -50,9 +50,9 @@ target_sources(
         modules/mod_essentials.f90
         modules/mod_functions.f90
         modules/mod_generation.f90
+        modules/mod_inference.f90
         modules/mod_layer_norm.f90
         modules/mod_linear.f90
-        modules/mod_pipeline.f90
         modules/mod_prompt_utils.f90
         modules/mod_readline.f90
         modules/mod_real_precision.f90

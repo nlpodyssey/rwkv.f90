@@ -1,7 +1,7 @@
 ! Copyright 2023 FortAI-Hub contributors.
 ! Released under the MIT License. See LICENSE file for full license information.
 
-module mod_pipeline
+module mod_inference
     use iso_fortran_env, only: error_unit, output_unit
     use mod_essentials, only : write_i0_arr_1d
     use mod_functions, only : layer_norm_2d
@@ -18,9 +18,9 @@ module mod_pipeline
     implicit none
 
     private
-    public :: pipeline_options, run_pipeline
+    public :: inference_options, run_inference
 
-    type :: pipeline_options
+    type :: inference_options
         character(:), allocatable :: tokenizer_filename
         character(:), allocatable :: model_filename
         character(:), allocatable :: draft_model_filename
@@ -28,8 +28,8 @@ module mod_pipeline
         integer :: speculative_sampling_lookahead = 2
     end type
 
-    type :: pipeline
-        type(pipeline_options) :: options
+    type :: inference
+        type(inference_options) :: options
         type(trie_tokenizer) :: tokenizer
         type(rwkv_lm_type) :: model
         type(rwkv_lm_type), allocatable :: draft_model
@@ -37,18 +37,18 @@ module mod_pipeline
         type(state_type) :: state
         type(state_type) :: draft_state
     contains
-        procedure :: load_tokenizer => pipeline_load_tokenizer
-        procedure :: run => pipeline_run
-        procedure :: init_states => pipeline_init_states
-        procedure :: process_and_generate_text => pipeline_process_and_generate_text
-        procedure :: generate_text => pipeline_generate_text
-        procedure :: generate_text_without_speculative_sampling => pipeline_generate_text_without_speculative_sampling
-        procedure :: generate_text_with_speculative_sampling => pipeline_generate_text_with_speculative_sampling
-        procedure, private :: print_token => pipeline_print_token
+        procedure :: load_tokenizer => inference_load_tokenizer
+        procedure :: run => inference_run
+        procedure :: init_states => inference_init_states
+        procedure :: process_and_generate_text => inference_process_and_generate_text
+        procedure :: generate_text => inference_generate_text
+        procedure :: generate_text_without_speculative_sampling => inference_generate_text_without_speculative_sampling
+        procedure :: generate_text_with_speculative_sampling => inference_generate_text_with_speculative_sampling
+        procedure, private :: print_token => inference_print_token
     end type
 
-    interface pipeline
-        module procedure :: pipeline_constructor
+    interface inference
+        module procedure :: inference_constructor
     end interface
 
     ! Variables for signals handling
@@ -58,15 +58,15 @@ module mod_pipeline
 
 contains
 
-    subroutine run_pipeline(options)
-        type(pipeline_options), intent(in) :: options
-        type(pipeline) :: p
-        p = pipeline(options)
+    subroutine run_inference(options)
+        type(inference_options), intent(in) :: options
+        type(inference) :: p
+        p = inference(options)
         call p%run()
     end subroutine
 
-    type(pipeline) function pipeline_constructor(options) result(self)
-        type(pipeline_options), intent(in) :: options
+    type(inference) function inference_constructor(options) result(self)
+        type(inference_options), intent(in) :: options
         character(*), parameter :: warmup_text = &
             'Question: A simple sentence to warm up the model' &
             // new_line('') // new_line('') // 'Response:'
@@ -84,16 +84,16 @@ contains
         end if
     end function
 
-    subroutine pipeline_load_tokenizer(self)
-        class(pipeline), intent(inout) :: self
+    subroutine inference_load_tokenizer(self)
+        class(inference), intent(inout) :: self
         type(timer) :: t
         t = timer('Loading tokenizer ' // self%options%tokenizer_filename)
         self%tokenizer = load_trie_tokenizer(self%options%tokenizer_filename)
         call t%done()
     end subroutine
 
-    subroutine pipeline_run(self)
-        class(pipeline), intent(inout) :: self
+    subroutine inference_run(self)
+        class(inference), intent(inout) :: self
         character(:), allocatable :: instruction
         character(:), allocatable :: prompt
         logical :: is_eof
@@ -111,14 +111,14 @@ contains
         end do
     end subroutine
 
-    subroutine pipeline_init_states(self)
-        class(pipeline), intent(inout) :: self
+    subroutine inference_init_states(self)
+        class(inference), intent(inout) :: self
         self%state = self%model%init_state()
         if (self%speculative_sampling_enabled) self%draft_state = self%draft_model%init_state()
     end subroutine
 
-    subroutine pipeline_process_and_generate_text(self, prompt)
-        class(pipeline), intent(inout) :: self
+    subroutine inference_process_and_generate_text(self, prompt)
+        class(inference), intent(inout) :: self
         character(:), allocatable, intent(in) :: prompt        
         integer, allocatable :: prompt_tokens(:)
         real(sp), allocatable :: logits(:), draft_logits(:)
@@ -150,8 +150,8 @@ contains
         
     end subroutine
 
-    subroutine pipeline_generate_text(self, logits)
-        class(pipeline), intent(inout) :: self
+    subroutine inference_generate_text(self, logits)
+        class(inference), intent(inout) :: self
         real(sp), intent(in) :: logits(:)
 
         call set_up_signals_handling()
@@ -168,8 +168,8 @@ contains
         call tear_down_signals_handling()
     end subroutine
 
-    subroutine pipeline_generate_text_without_speculative_sampling(self, input_logits)
-        class(pipeline), intent(inout) :: self
+    subroutine inference_generate_text_without_speculative_sampling(self, input_logits)
+        class(inference), intent(inout) :: self
         real(sp), intent(in) :: input_logits(:)
         real(sp) :: occurrence(size(self%model%proj, 1)) ! corresponding to the number of logits
         real(sp), allocatable :: logits(:)
@@ -188,8 +188,8 @@ contains
         end do
     end subroutine
 
-    subroutine pipeline_generate_text_with_speculative_sampling(self, input_logits)
-        class(pipeline), intent(inout) :: self
+    subroutine inference_generate_text_with_speculative_sampling(self, input_logits)
+        class(inference), intent(inout) :: self
         real(sp), intent(in) :: input_logits(:)
 
         real(sp), dimension(size(input_logits)) :: todo_occurrence ! TODO: occurrence handling
@@ -287,8 +287,8 @@ contains
         call finalize_states(target_states)
     end subroutine
     
-    subroutine pipeline_print_token(self, token_id)
-        class(pipeline), intent(in) :: self
+    subroutine inference_print_token(self, token_id)
+        class(inference), intent(in) :: self
         integer, intent(in) :: token_id
         call print_token(self%tokenizer%decode([token_id]))
     end subroutine
