@@ -2,15 +2,14 @@
 ! Released under the MIT License. See LICENSE file for full license information.
 
 module mod_stats
-    use mod_real_precision
+    use mod_real_precision, only: sp
     implicit none
     private
-    public :: sample_from_multinomial
+    public :: sample_from_multinomial, sample_once_from_multinomial
 
 contains
 
     function sample_from_multinomial(probs, num_samples) result(sampled_indices)
-        implicit none
         real(sp), dimension(:), intent(in) :: probs
         integer, intent(in) :: num_samples
         integer :: sampled_indices(num_samples)
@@ -39,6 +38,28 @@ contains
                     exit
                 end if
             end do
+        end do
+    end function
+
+    integer function sample_once_from_multinomial(probs) result(sampled_index)
+        real(sp), intent(in) :: probs(:)
+        integer :: n, i
+        real(sp) :: p, cum_sum
+
+        n = size(probs)
+        if (n == 0) error stop 'Cannot sample from empty array of probabilities.'
+
+        call random_number(p)
+
+        sampled_index = n ! fallback value, in case cum_sum does not reach p
+
+        cum_sum = 0.0
+        do i = 1, n
+            cum_sum = cum_sum + probs(i)
+            if (cum_sum >= p) then
+                sampled_index = i
+                exit
+            end if
         end do
     end function
 
