@@ -177,28 +177,25 @@ contains
         output = matmul(self%proj, self%ln_out%forward(last_encoded))
     end function
 
-    function forward_batch_with_hidden_states(self, x, init_state, hidden_states) result(output)
+    function forward_batch_with_hidden_states(self, x, initial_state, hidden_states) result(output)
         class(rwkv_lm_type), intent(in) :: self
         integer, intent(in) :: x(:)
-        type(state_type), intent(in) :: init_state
+        type(state_type), intent(in) :: initial_state
         type(hidden_states_type), intent(inout) :: hidden_states
+        real(sp) :: output(self%vocab_size, size(x))
 
-        real(sp) :: encoded(self%d_model,size(x))
-        real(sp) :: last_encoded(self%d_model)
-        real(sp), allocatable :: output(:, :)
-
+        real(sp) :: encoded(self%d_model, size(x))
+        real(sp) :: qqq(self%d_model, size(x))
         integer i
 
-        do concurrent (i=1:size(x))
-            encoded(:,i) = self%emb(:, x(i)+1)
-        end do
-
+        encoded = self%emb(:, x+1)
+        
         if (.not. self%precomputed_ln_emb) then
             encoded = self%ln_emb%forward(encoded)
         end if
-
+        
         do i = 1, size(self%layers)
-            encoded = self%layers(i)%forward(encoded, init_state%layers(i), hidden_states%layers(i))
+            encoded = self%layers(i)%forward(encoded, initial_state%layers(i), hidden_states%layers(i))
         end do
 
         output = matmul(self%proj, self%ln_out%forward(encoded))
