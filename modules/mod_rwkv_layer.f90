@@ -7,6 +7,7 @@ module mod_rwkv_layer
     use mod_channel_mix
     use mod_time_mix
     use mod_state, only: layer_state_type
+    use mod_hidden_states, only: layer_hidden_states_type
     implicit none
     private
     public :: rwkv_layer_type
@@ -20,7 +21,8 @@ module mod_rwkv_layer
         procedure read_params
         procedure, pass :: forward_single
         procedure, pass :: forward_batch
-        generic :: forward => forward_single, forward_batch
+        procedure, pass :: forward_batch_with_hidden_states
+        generic :: forward => forward_single, forward_batch, forward_batch_with_hidden_states
     end type
 
     interface rwkv_layer_type
@@ -70,6 +72,17 @@ contains
 
         y = x + self%time_mix%forward(self%ln1%forward(x), state)
         y = y + self%channel_mix%forward(self%ln2%forward(y), state)
+    end function
+
+    function forward_batch_with_hidden_states(self, x, init_state, hidden_states) result(y)
+        class(rwkv_layer_type), intent(in) :: self
+        real(sp), intent(in) :: x(:,:)
+        type(layer_state_type), intent(in) :: init_state
+        type(layer_hidden_states_type), intent(inout) :: hidden_states
+        real(sp), allocatable :: y(:,:)
+
+        y = x + self%time_mix%forward(self%ln1%forward(x), init_state, hidden_states)
+        y = y + self%channel_mix%forward(self%ln2%forward(y), init_state, hidden_states)
     end function
 
 end module

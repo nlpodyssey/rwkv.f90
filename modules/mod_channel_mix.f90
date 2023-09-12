@@ -5,6 +5,7 @@ module mod_channel_mix
     use mod_real_precision
     use mod_arr_ops_broadcasting
     use mod_state
+    use mod_hidden_states
     use mod_token_shift
     implicit none
     private
@@ -21,7 +22,8 @@ module mod_channel_mix
         procedure :: read_params
         procedure, pass :: forward_single
         procedure, pass :: forward_batch
-        generic :: forward => forward_single, forward_batch
+        procedure, pass :: forward_batch_with_hidden_states
+        generic :: forward => forward_single, forward_batch, forward_batch_with_hidden_states
     end type
 
     interface channel_mix_type
@@ -105,6 +107,32 @@ contains
         rkv = sigmoid(r) * kv
 
         state%ffn_xx = x(:, n) ! Update state
+    end function
+
+    function forward_batch_with_hidden_states(self, x, init_state, hidden_states) result(rkv)
+        use mod_functions, only: relu, sigmoid
+
+        class(channel_mix_type), intent(in) :: self
+        real(sp), intent(in) :: x(:,:) ! d_model, batch_size
+        type(layer_state_type), intent(in) :: init_state
+        type(layer_hidden_states_type), intent(inout) :: hidden_states
+
+        real(sp), dimension(self%dm, size(x, 2)) :: xx, kv, rkv
+        real(sp) :: r(self%dm, size(x, 2)), k(self%hidden, size(x, 2))
+        integer :: i, n
+
+        n = size(x, 2)
+
+        xx = token_shift(init_state%ffn_xx, x)
+
+        k = matmul(self%wk, self%mk * x + (1.0 - self%mk) * xx)
+        r = matmul(self%wr, self%mr * x + (1.0 - self%mr) * xx)
+        kv = matmul(self%wv, relu(k) ** 2)
+        rkv = sigmoid(r) * kv
+
+        do i = 1, n
+            hidden_states%ffn_xx(:, i) = x(:, i)
+        end do
     end function
 
 end module

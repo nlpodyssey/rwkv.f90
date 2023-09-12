@@ -5,6 +5,7 @@ module mod_time_mix
     use mod_real_precision
     use mod_arr_ops_broadcasting
     use mod_state
+    use mod_hidden_states
     use mod_token_shift
     implicit none
     private
@@ -25,7 +26,8 @@ module mod_time_mix
         procedure read_params
         procedure, pass :: forward_single
         procedure, pass :: forward_batch
-        generic :: forward => forward_single, forward_batch
+        procedure, pass :: forward_batch_with_hidden_states
+        generic :: forward => forward_single, forward_batch, forward_batch_with_hidden_states
     end type
 
     interface time_mix_type
@@ -161,7 +163,57 @@ contains
         state%att_pp = pp
 
         out = matmul(self%wo, sigmoid(r) * sx)
+    end function
 
+    function forward_batch_with_hidden_states(self, x, init_state, hidden_states) result(out)
+        use mod_functions, only: sigmoid
+
+        class(time_mix_type), intent(in) :: self
+        real(sp), intent(in) :: x(:,:)
+        type(layer_state_type), intent(in) :: init_state
+        type(layer_hidden_states_type), intent(inout) :: hidden_states
+
+        integer :: i, n
+        real(sp), dimension(self%dm, size(x, 2)) :: xx, k, v, r, sx, out
+        real(sp), dimension(self%dm) :: ww, p, e1, e2, a, b, aa, bb, pp
+
+        xx = token_shift(init_state%att_xx, x)
+
+        k = matmul(self%wk, self%mk * x + (1.0 - self%mk) * xx)
+        v = matmul(self%wv, self%mv * x + (1.0 - self%mv) * xx)
+        r = matmul(self%wr, self%mr * x + (1.0 - self%mr) * xx)
+
+        aa = init_state%att_aa
+        bb = init_state%att_bb
+        pp = init_state%att_pp
+
+        n = size(x, 2)
+
+        do i = 1, n
+            ww = k(:,i) + self%tf
+            p = max(pp, ww)
+            e1 = exp(pp - p)
+            e2 = exp(ww - p)
+            a = e1 * aa + e2 * v(:,i)
+            b = e1 * bb + e2
+            sx(:,i) =  a / b
+
+            ww = pp + self%td
+            p = max(ww, k(:,i))
+            e1 = exp(ww - p)
+            e2 = exp(k(:,i) - p)
+
+            aa = e1 * aa + e2 * v(:,i)
+            bb = e1 * bb + e2
+            pp = p
+
+            hidden_states%att_xx(:, i) = x(:, i)
+            hidden_states%att_aa(:, i) = aa
+            hidden_states%att_bb(:, i) = bb
+            hidden_states%att_pp(:, i) = pp
+        end do
+
+        out = matmul(self%wo, sigmoid(r) * sx)
     end function
 
 end module

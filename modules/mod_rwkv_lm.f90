@@ -4,6 +4,7 @@
 module mod_rwkv_lm
     use mod_real_precision
     use mod_state
+    use mod_hidden_states
     use mod_layer_norm
     use mod_rwkv_layer
     use mod_functions, only : layer_norm_2d
@@ -27,7 +28,8 @@ module mod_rwkv_lm
         procedure :: precompute_layer_norm_embeddings
         procedure, pass :: forward_single
         procedure, pass :: forward_batch
-        generic :: forward => forward_single, forward_batch
+        procedure, pass :: forward_batch_with_hidden_states
+        generic :: forward => forward_single, forward_batch, forward_batch_with_hidden_states
     end type
 
     interface rwkv_lm_type
@@ -173,6 +175,33 @@ contains
         last_encoded = encoded(:, size(encoded, 2))
 
         output = matmul(self%proj, self%ln_out%forward(last_encoded))
+    end function
+
+    function forward_batch_with_hidden_states(self, x, init_state, hidden_states) result(output)
+        class(rwkv_lm_type), intent(in) :: self
+        integer, intent(in) :: x(:)
+        type(state_type), intent(in) :: init_state
+        type(hidden_states_type), intent(inout) :: hidden_states
+
+        real(sp) :: encoded(self%d_model,size(x))
+        real(sp) :: last_encoded(self%d_model)
+        real(sp), allocatable :: output(:, :)
+
+        integer i
+
+        do concurrent (i=1:size(x))
+            encoded(:,i) = self%emb(:, x(i)+1)
+        end do
+
+        if (.not. self%precomputed_ln_emb) then
+            encoded = self%ln_emb%forward(encoded)
+        end if
+
+        do i = 1, size(self%layers)
+            encoded = self%layers(i)%forward(encoded, init_state%layers(i), hidden_states%layers(i))
+        end do
+
+        output = matmul(self%proj, self%ln_out%forward(encoded))
     end function
 
 end module
