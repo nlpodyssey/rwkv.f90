@@ -136,6 +136,8 @@ contains
 
             call set_up_signals_handling()
 
+            tokens_count = 0
+
             t = timer('Generating text')
 
             if (self%speculative_sampling_enabled) then
