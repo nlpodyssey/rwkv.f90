@@ -89,7 +89,7 @@ After successfully building the project, you're ready to run it.
 Navigate to the build directory and run the `rwkv-cli` executable with the following command:
 
 ```bash
-OMP_NUM_THREADS=8 ./rwkv-cli ../models/rwkv_vocab_v20230424.csv ../models/<YOUR-CONVERTED-MODEL-NAME> 2> >(while read line; do echo -e "\e[01;31m$line\e[0m" >&2; done) 
+OMP_NUM_THREADS=8 ./rwkv-cli -tokenizer ../models/rwkv_vocab_v20230424.csv -model ../models/<YOUR-CONVERTED-MODEL-NAME> 2> >(while read line; do echo -e "\e[01;31m$line\e[0m" >&2; done) 
 ```
 
 Replace `<YOUR-CONVERTED-MODEL-NAME>` with the actual name of your converted model file.
