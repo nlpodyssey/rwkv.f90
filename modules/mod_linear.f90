@@ -41,7 +41,7 @@ contains
         if (iostat /= 0) return
     end subroutine read_params
 
-    function forward_single(self, x) result(y)
+    pure function forward_single(self, x) result(y)
         class(linear_type), intent(in) :: self
         real(sp), intent(in) :: x(:)
         real(sp) :: y(size(self%b))
@@ -49,7 +49,7 @@ contains
         y = matmul(self%w, x) + self%b
     end function forward_single
 
-    function forward_batch(self, x) result(y)
+    pure function forward_batch(self, x) result(y)
         class(linear_type), intent(in) :: self
         real(sp), intent(in) :: x(:,:)
         real(sp) :: y(size(self%b,1),size(x,2))

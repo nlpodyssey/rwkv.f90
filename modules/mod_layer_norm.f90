@@ -46,7 +46,7 @@ contains
         if (iostat /= 0) return
     end subroutine
 
-    function forward_single(self, x) result(y)
+    pure function forward_single(self, x) result(y)
         use mod_functions, only: layer_norm_1d
 
         class(layer_norm_type), intent(in) :: self
@@ -56,7 +56,7 @@ contains
         y = layer_norm_1d(x, self%g, self%b, self%eps)
     end function
 
-    function forward_batch(self, x) result(y)
+    pure function forward_batch(self, x) result(y)
         use mod_functions, only: layer_norm_2d
 
         class(layer_norm_type), intent(in) :: self
