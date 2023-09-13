@@ -380,7 +380,7 @@ contains
         logical, intent(out) :: is_eof
         integer :: iostat
 
-        call readline('>>> ', text, iostat)
+        call readline('» ', text, iostat)
 
         is_eof = is_iostat_end(iostat)
         if (is_eof) then
