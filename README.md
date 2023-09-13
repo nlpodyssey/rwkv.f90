@@ -94,7 +94,17 @@ OMP_NUM_THREADS=8 ./rwkv-cli -tokenizer ../models/rwkv_vocab_v20230424.csv -mode
 
 Replace `<YOUR-CONVERTED-MODEL-NAME>` with the actual name of your converted model file.
 
-That's all! You have successfully set up and run the rwkv.f90 project. If you encounter any issues, please raise them in the issue tracker.
+## 4.1 Run with Speculative Sampling
+
+[Speculative sampling](https://arxiv.org/pdf/2302.01318.pdf) can double the speed of the generation. However, the current implementation is experimental with known TODOs.
+
+To leverage this, pair your main model with a faster draft model. Consider using the `0.1B` model as your draft, which has been observed to be surprisingly robust for this purpose.
+
+```bash
+OMP_NUM_THREADS=8 ./rwkv-cli -tokenizer ../models/rwkv_vocab_v20230424.csv -model ../models/<YOUR-CONVERTED-MODEL-NAME> -draft ../models/<YOUR-CONVERTED-SMALLER-MODEL-NAME> 2> >(while read line; do echo -e "\e[01;31m$line\e[0m" >&2; done) 
+```
+
+Replace placeholders with appropriate model names.
 
 # References
 
