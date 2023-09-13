@@ -182,10 +182,10 @@ contains
         integer, intent(in) :: x(:)
         type(state_type), intent(in) :: initial_state
         type(hidden_states_type), intent(inout) :: hidden_states
-        real(sp) :: output(self%vocab_size, size(x))
 
         real(sp) :: encoded(self%d_model, size(x))
-        real(sp) :: qqq(self%d_model, size(x))
+        real(sp) :: output(self%vocab_size, size(x))
+
         integer i
 
         encoded = self%emb(:, x+1)
