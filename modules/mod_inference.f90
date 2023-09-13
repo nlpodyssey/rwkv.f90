@@ -89,6 +89,7 @@ contains
     end subroutine
 
     subroutine inference_run(self)
+        use iso_fortran_env, only: real64
         class(inference), intent(inout) :: self
 
         character(:), allocatable :: instruction
@@ -99,7 +100,9 @@ contains
         real(sp) :: logits(self%model%vocab_size)
         real(sp), allocatable :: draft_logits(:)
         integer :: input_count = 0
+        integer :: tokens_count = 0
         type(timer) :: t
+        real(real64) :: elapsed_time
 
         call reset_state()
 
@@ -136,13 +139,15 @@ contains
             t = timer('Generating text')
 
             if (self%speculative_sampling_enabled) then
-                call self%generate_text_with_speculative_sampling(logits, state, draft_state)
+                call self%generate_text_with_speculative_sampling(logits, state, draft_state, tokens_count)
             else
-                call self%generate_text(logits, state)
+                call self%generate_text(logits, state, tokens_count)
             end if
 
             write(output_unit, '(a)') new_line('')
-            call t%done()
+
+            elapsed_time = t%elapsed_time()
+            write(output_unit, '(a, i0, a, f0.3, a, f0.3, a)') 'Generated ', tokens_count, ' tokens in ', elapsed_time, ' seconds (', real(tokens_count) / elapsed_time, ' tok/s).'
 
             if (signal_received) write(error_unit,'(a)') '> Generation stopped by user.'
             call tear_down_signals_handling()
@@ -161,10 +166,11 @@ contains
 
     end subroutine
 
-    subroutine inference_generate_text(self, input_logits, state)
+    subroutine inference_generate_text(self, input_logits, state, tokens_count)
         class(inference), intent(inout) :: self
         real(sp), intent(in) :: input_logits(:)
         type(state_type), intent(inout) :: state
+        integer, intent(out) :: tokens_count
 
         real(sp) :: occurrence(size(input_logits))
         real(sp) :: logits(size(input_logits))
@@ -175,6 +181,7 @@ contains
         logits = input_logits
 
         do i = 1, self%options%generation%max_token_limit
+            tokens_count = tokens_count + 1
             token_id = generate_next_token(logits, occurrence, self%options%generation, end_of_generation)
             if (end_of_generation .or. signal_received) exit
             call self%print_token(token_id)
@@ -182,10 +189,11 @@ contains
         end do
     end subroutine
 
-    subroutine inference_generate_text_with_speculative_sampling(self, input_logits, state, draft_state)
+    subroutine inference_generate_text_with_speculative_sampling(self, input_logits, state, draft_state, tokens_count)
         class(inference), intent(in) :: self
         real(sp), intent(in) :: input_logits(self%model%vocab_size)
         type(state_type), intent(inout) :: state, draft_state
+        integer, intent(out) :: tokens_count
 
         type(state_type) :: draft_states(self%options%speculative_sampling_lookahead)
         real(sp) :: draft_logits(size(input_logits))
@@ -264,6 +272,8 @@ contains
                 call target_states%copy_to_state(last_accepted_index, state)
             end if
         end do main_loop
+
+        tokens_count = n
 
         call finalize_states(draft_states)
     end subroutine
