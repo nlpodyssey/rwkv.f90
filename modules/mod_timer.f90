@@ -23,9 +23,11 @@ module mod_timer
 contains
 
     type(timer) function timer_constructor(message) result(self)
-        character(*), intent(in) :: message
+        character(*), optional, intent(in) :: message
         call system_clock(self%initial_count)
-        write(error_unit,'(3a)') '> ', message, '...'
+        if (present(message)) then
+            write(error_unit,'(3a)') '> ', message, '...'
+        end if
     end function
 
     real(real64) function elapsed_time(self)
