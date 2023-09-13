@@ -12,6 +12,7 @@ module mod_timer
     type :: timer
         integer(int64), private :: initial_count
     contains
+        procedure :: elapsed_time
         procedure :: done => timer_done
     end type
 
@@ -25,6 +26,14 @@ contains
         character(*), intent(in) :: message
         call system_clock(self%initial_count)
         write(error_unit,'(3a)') '> ', message, '...'
+    end function
+
+    real(real64) function elapsed_time(self)
+        class(timer), intent(in) :: self
+        integer(int64) :: final_count, count_rate, diff
+        call system_clock(final_count, count_rate)
+        diff = final_count - self%initial_count
+        elapsed_time = real(diff, real64) / real(count_rate, real64)
     end function
 
     subroutine timer_done(self)
