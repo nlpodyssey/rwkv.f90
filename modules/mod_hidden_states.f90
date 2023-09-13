@@ -3,6 +3,7 @@
 
 module mod_hidden_states
     use mod_real_precision
+    use mod_state, only : state_type, layer_state_type
     implicit none
     private
     public :: hidden_states_type, layer_hidden_states_type
@@ -17,6 +18,8 @@ module mod_hidden_states
 
     type :: hidden_states_type
         type(layer_hidden_states_type), allocatable :: layers(:)
+    contains
+        procedure :: copy_to_state => copy_hidden_state_to_state
     end type
 
     interface hidden_states_type
@@ -47,4 +50,28 @@ contains
             self%layers(i)%att_pp = -1e30
         end do
     end function
+
+    subroutine copy_hidden_state_to_state(self, index, dest)
+        class(hidden_states_type), intent(in) :: self
+        integer, intent(in) :: index
+        type(state_type), intent(inout) :: dest
+        integer :: i
+
+        do concurrent (i = 1:size(self%layers))
+            call copy_layer_hidden_state_to_layer_state(self%layers(i), index, dest%layers(i))
+        end do
+    end subroutine
+
+    pure subroutine copy_layer_hidden_state_to_layer_state(source, index, dest)
+        type(layer_hidden_states_type), intent(in) :: source
+        integer, intent(in) :: index
+        type(layer_state_type), intent(inout) :: dest
+
+        dest%ffn_xx = source%ffn_xx(:, index)
+        dest%att_xx = source%att_xx(:, index)
+        dest%att_aa = source%att_aa(:, index)
+        dest%att_bb = source%att_bb(:, index)
+        dest%att_pp = source%att_pp(:, index)
+    end subroutine
+
 end module

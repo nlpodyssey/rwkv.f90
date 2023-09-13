@@ -26,7 +26,7 @@ module mod_inference
         character(:), allocatable :: model_filename
         character(:), allocatable :: draft_model_filename
         type(generation_options) :: generation
-        integer :: speculative_sampling_lookahead = 4
+        integer :: speculative_sampling_lookahead = 7
     end type
 
     type :: inference
@@ -36,12 +36,10 @@ module mod_inference
         type(rwkv_lm_type), allocatable :: draft_model
         logical :: speculative_sampling_enabled
     contains
-        procedure :: load_tokenizer => inference_load_tokenizer
         procedure :: run => inference_run
-        procedure :: process_prompt => inference_process_prompt
-        procedure :: generate_text => inference_generate_text
-        procedure :: generate_text_without_speculative_sampling => inference_generate_text_without_speculative_sampling
-        procedure :: generate_text_with_speculative_sampling => inference_generate_text_with_speculative_sampling
+        procedure, private :: generate_text => inference_generate_text
+        procedure, private :: generate_text_with_speculative_sampling => inference_generate_text_with_speculative_sampling
+        procedure, private :: load_tokenizer => inference_load_tokenizer
         procedure, private :: print_token => inference_print_token
     end type
 
@@ -92,90 +90,83 @@ contains
 
     subroutine inference_run(self)
         class(inference), intent(inout) :: self
+
         character(:), allocatable :: instruction
         character(:), allocatable :: prompt
         logical :: is_eof
-
         type(state_type) :: state, draft_state
+        integer, allocatable :: prompt_tokens(:)
         real(sp) :: logits(self%model%vocab_size)
+        real(sp), allocatable :: draft_logits(:)
+        integer :: input_count = 0
+        type(timer) :: t
+
+        call reset_state()
 
         do
             call read_user_input(instruction, is_eof)
             if (is_eof) exit
             if (len(instruction) == 0) cycle
 
+            if (input_count > 0) then
+                call reset_state()
+            end if
+
             prompt = generate_prompt(instruction=instruction)
 
-            state = self%model%init_state()
-            if (self%speculative_sampling_enabled) draft_state = self%draft_model%init_state()
+            t = timer('Tokenizing prompt')
+            prompt_tokens = self%tokenizer%encode(prompt)
+            call t%done()
 
-            call self%process_prompt(prompt, state, logits, draft_state)
-            call self%generate_text(logits, state, draft_state)
+            write(error_unit, '(a, i0, a)', advance='no') '> ', size(prompt_tokens), ' tokens: '
+            call write_i0_arr_1d(error_unit, prompt_tokens)
+
+            t = timer('Preprocessing tokens')
+            logits = self%model%forward_batch(prompt_tokens, state)
+            call t%done()
+
+            if (self%speculative_sampling_enabled) then
+                t = timer('Preprocessing tokens (draft)')
+                draft_logits = self%draft_model%forward_batch(prompt_tokens, draft_state)
+                call t%done()
+            end if
+
+            call set_up_signals_handling()
+
+            t = timer('Generating text')
+
+            if (self%speculative_sampling_enabled) then
+                call self%generate_text_with_speculative_sampling(logits, state, draft_state)
+            else
+                call self%generate_text(logits, state)
+            end if
+
+            write(output_unit, '(a)') new_line('')
+            call t%done()
+
+            if (signal_received) write(error_unit,'(a)') '> Generation stopped by user.'
+            call tear_down_signals_handling()
+
+            input_count = input_count + 1
         end do
-    end subroutine
 
-    subroutine inference_process_prompt(self, prompt, state, logits, draft_state)
-        class(inference), intent(inout) :: self
-        character(*), intent(in) :: prompt
-        type(state_type), intent(inout) :: state, draft_state
-        real(sp), intent(out) :: logits(:)
-        real(sp), allocatable :: draft_logits(:)
+    contains
 
-        integer, allocatable :: prompt_tokens(:)
-
-        type(timer) :: t
-        
-        t = timer('Tokenizing prompt')
-        prompt_tokens = self%tokenizer%encode(prompt)
-        call t%done()
-
-        write(error_unit, '(a, i0, a)', advance='no') '> ', size(prompt_tokens), ' tokens: '
-        call write_i0_arr_1d(error_unit, prompt_tokens)
-
-        t = timer('Preprocessing tokens')
-        if (self%speculative_sampling_enabled) then
-            !$omp parallel sections
-            !$omp section
-            logits = self%model%forward_batch(prompt_tokens, state)
-            !$omp section
-            draft_logits = self%draft_model%forward_batch(prompt_tokens, draft_state)
-            !$omp end parallel sections
-        else
-            logits = self%model%forward_batch(prompt_tokens, state)
-        end if
-        call t%done()
+        subroutine reset_state()
+            state = self%model%init_state()
+            if (self%speculative_sampling_enabled) then
+                draft_state = self%draft_model%init_state()
+            end if
+        end subroutine
 
     end subroutine
 
-    subroutine inference_generate_text(self, logits, state, draft_state)
-        class(inference), intent(inout) :: self
-        real(sp), intent(in) :: logits(:)
-        type(state_type), intent(inout) :: state, draft_state
-        type(timer) :: t
-
-        call set_up_signals_handling()
-
-        t = timer('Generating')
-        if (self%speculative_sampling_enabled) then
-            call self%generate_text_with_speculative_sampling(logits, state, draft_state)
-        else
-            call self%generate_text_without_speculative_sampling(logits, state)
-        end if
-
-        write(output_unit, '(a)') new_line('')
-        call t%done()
-
-        if (signal_received) write(error_unit,'(a)') '> Generation stopped by user.'
-
-        call tear_down_signals_handling()
-    end subroutine
-
-    subroutine inference_generate_text_without_speculative_sampling(self, input_logits, state)
+    subroutine inference_generate_text(self, input_logits, state)
         class(inference), intent(inout) :: self
         real(sp), intent(in) :: input_logits(:)
         type(state_type), intent(inout) :: state
 
-        real(sp) :: occurrence(size(self%model%proj, 1)) ! corresponding to the number of logits
+        real(sp) :: occurrence(size(input_logits))
         real(sp) :: logits(size(input_logits))
         integer :: i, token_id
         logical :: end_of_generation
@@ -199,17 +190,16 @@ contains
         type(state_type) :: draft_states(self%options%speculative_sampling_lookahead)
         real(sp) :: draft_logits(size(input_logits))
         integer :: draft_token_ids(self%options%speculative_sampling_lookahead)
-        real(sp) :: draft_tokens_probs(self%options%speculative_sampling_lookahead, size(input_logits))
-        
+        real(sp) :: draft_tokens_probs(size(input_logits), self%options%speculative_sampling_lookahead)
+
         type(hidden_states_type) :: target_states
         real(sp) :: target_logits(size(input_logits), self%options%speculative_sampling_lookahead+1)
-        integer :: target_input_token_ids(self%options%speculative_sampling_lookahead+1)
         integer :: target_output_token_id
         real(sp) :: target_tokens_probs(size(input_logits))
-        
-        real(sp) :: todo_occurrence(size(input_logits)) ! TODO: occurrence handling
+
+        real(sp) :: todo_occurrence(size(input_logits))
         real(sp) :: r, draft_prob, target_prob
-        integer :: n, t, last_token_id, lookahead, draft_token_id
+        integer :: n, t, last_accepted_index, last_token_id, lookahead, draft_token_id
         logical :: end_of_generation, all_tokens_accepted
 
         todo_occurrence = 0
@@ -222,45 +212,34 @@ contains
 
         n = 0
         main_loop: do while(n < self%options%generation%max_token_limit)
-            target_input_token_ids(1) = last_token_id
             call copy_state(draft_state, draft_states(1))
+            call draft_tokens_generation(self, last_token_id, lookahead, draft_states, draft_token_ids, draft_tokens_probs)
+            if (signal_received) exit main_loop
+            target_logits = self%model%forward_batch_with_hidden_states([last_token_id, draft_token_ids], state, target_states)
 
-            draft_loop: do t = 1, lookahead
-                if (signal_received) exit main_loop
-                if (t > 1) call copy_state(draft_states(t-1), draft_states(t))
-
-                draft_logits = self%draft_model%forward(target_input_token_ids(t), draft_states(t))
-                todo_occurrence = 0
-                draft_token_ids(t) = generate_next_token(draft_logits, todo_occurrence, self%options%generation, end_of_generation, output_probs=draft_tokens_probs(t, :))
-                target_input_token_ids(t+1) = draft_token_ids(t)
-
-                if (end_of_generation) exit draft_loop
-            end do draft_loop
-
-            target_logits = self%model%forward_batch_with_hidden_states(target_input_token_ids, state, target_states)
+            last_accepted_index = 0
 
             all_tokens_accepted = .true.
             sampling_loop: do t = 1, lookahead
+                if (signal_received) exit main_loop
+
+                last_accepted_index = last_accepted_index + 1
                 draft_token_id = draft_token_ids(t)
 
                 todo_occurrence = 0
                 target_output_token_id = generate_next_token(target_logits(:, t), todo_occurrence, self%options%generation, end_of_generation, output_probs=target_tokens_probs)
                 target_prob = target_tokens_probs(draft_token_id+1)
 
-                draft_prob = draft_tokens_probs(t, draft_token_id+1)
+                draft_prob = draft_tokens_probs(draft_token_id+1, t)
                 call random_number(r)
 
-                ! TODO: optimize copying/swapping only the last state
-                call swap_states(draft_states(t), draft_state)
-                call copy_hidden_state_to_state(target_states, t, state)
-                
                 if (r < min(1.0, target_prob / draft_prob)) then
                     last_token_id = draft_token_id
                     if (last_token_id == 0) exit main_loop
                     call self%print_token(last_token_id)
                     n = n + 1
                 else
-                    last_token_id = sample_once_from_multinomial(make_probs_for_resampling(target_tokens_probs, draft_tokens_probs(t, :))) - 1
+                    last_token_id = sample_once_from_multinomial(make_probs_for_resampling(target_tokens_probs, draft_tokens_probs(:, t))) - 1
                     if (last_token_id == 0) exit main_loop
                     call self%print_token(last_token_id)
                     n = n + 1
@@ -269,50 +248,59 @@ contains
                 end if
             end do sampling_loop
 
+            call swap_states(draft_states(last_accepted_index), draft_state)
+
             if (all_tokens_accepted) then
                 ! make sure draft state is aligned
                 draft_logits = self%draft_model%forward(last_token_id, draft_state)
+                call target_states%copy_to_state(lookahead+1, state)
 
-                call copy_hidden_state_to_state(target_states, lookahead+1, state)
-
-                todo_occurrence = 0
+                todo_occurrence = 0 ! TODO
                 last_token_id = generate_next_token(target_logits(:, lookahead+1), todo_occurrence, self%options%generation, end_of_generation)
                 if (end_of_generation) exit main_loop
                 call self%print_token(last_token_id)
                 n = n + 1
+            else
+                call target_states%copy_to_state(last_accepted_index, state)
             end if
         end do main_loop
 
         call finalize_states(draft_states)
     end subroutine
-    
+
+    subroutine draft_tokens_generation(self, start_token_id, lookahead, draft_states, draft_token_ids, draft_tokens_probs)
+        class(inference), intent(in) :: self
+        integer, intent(in) :: start_token_id
+        integer, intent(in) :: lookahead
+        type(state_type), intent(inout) :: draft_states(lookahead)
+        integer, intent(out) :: draft_token_ids(lookahead)
+        real(sp), intent(out) :: draft_tokens_probs(self%model%vocab_size, lookahead)
+
+        real(sp) :: draft_logits(self%model%vocab_size)
+        real(sp) :: todo_occurrence(self%model%vocab_size)
+        integer :: last_token_id
+        logical :: end_of_generation
+        integer :: t
+
+        last_token_id = start_token_id
+
+        do t = 1, lookahead
+            if (signal_received) exit
+            if (t > 1) call copy_state(draft_states(t-1), draft_states(t))
+
+            draft_logits = self%draft_model%forward(last_token_id, draft_states(t))
+            todo_occurrence = 0 ! TODO
+            draft_token_ids(t) = generate_next_token(draft_logits, todo_occurrence, self%options%generation, end_of_generation, output_probs=draft_tokens_probs(:, t))
+            last_token_id = draft_token_ids(t)
+
+            if (end_of_generation) exit
+        end do
+    end subroutine
+
     subroutine inference_print_token(self, token_id)
         class(inference), intent(in) :: self
         integer, intent(in) :: token_id
         call print_token(self%tokenizer%decode([token_id]))
-    end subroutine
-
-    pure subroutine copy_hidden_state_to_state(source, index, dest)
-        type(hidden_states_type), intent(in) :: source
-        integer, intent(in) :: index
-        type(state_type), intent(inout) :: dest
-        integer :: i
-
-        do concurrent (i = 1:size(source%layers))
-            call copy_layer_hidden_state_to_layer_state(source%layers(i), index, dest%layers(i))
-        end do
-    end subroutine
-
-    pure subroutine copy_layer_hidden_state_to_layer_state(source, index, dest)
-        type(layer_hidden_states_type), intent(in) :: source
-        integer, intent(in) :: index
-        type(layer_state_type), intent(inout) :: dest
-
-        dest%ffn_xx = source%ffn_xx(:, index)
-        dest%att_xx = source%att_xx(:, index)
-        dest%att_aa = source%att_aa(:, index)
-        dest%att_bb = source%att_bb(:, index)
-        dest%att_pp = source%att_pp(:, index)
     end subroutine
 
     pure function make_probs_for_resampling(target_probs, draft_probs) result(res)
@@ -335,8 +323,10 @@ contains
     end subroutine
     
     subroutine handle_signal(signal_number)
-        integer, intent(in) :: signal_number
-        signal_received = .true.
+        integer, optional, intent(in) :: signal_number
+        if (present(signal_number)) then
+            signal_received = .true.
+        end if
     end subroutine
 
     type(rwkv_lm_type) function load_model(name, filename, warmup_inputs) result(model)
