@@ -82,6 +82,21 @@ For example, you would run:
 BLA_VENDOR=OpenBLAS cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="/opt/homebrew/opt/openblas/lib" .. && make
 ```
 
+#### Special Instructions for Intel MKL implementation of BLAS
+
+Please refer to the following documentation of CMake FindBLAS:
+https://cmake.org/cmake/help/latest/module/FindBLAS.html#intel-mkl
+
+For example, after installing Intel oneAPI MKL under `/opt/intel/oneapi`, the
+project can be built with a sequence of commands like this:
+
+```bash
+mkdir build && cd build
+. /opt/intel/oneapi/setvars.sh
+cmake -DCMAKE_BUILD_TYPE=Release -DBLA_VENDOR=Intel10_64lp ..
+make
+```
+
 ## 4. Run the Project
 
 After successfully building the project, you're ready to run it. 
