@@ -38,6 +38,7 @@ module mod_inference
         procedure :: run => inference_run
         procedure, private :: generate_text => inference_generate_text
         procedure, private :: generate_text_with_speculative_sampling => inference_generate_text_with_speculative_sampling
+        procedure, private :: sample_token => inference_sample_token
         procedure, private :: load_tokenizer => inference_load_tokenizer
         procedure, private :: print_token => inference_print_token
     end type
@@ -203,13 +204,10 @@ contains
 
         type(state_type) :: target_states(self%options%speculative_sampling_lookahead+1)
         real(sp) :: target_logits(size(input_logits), self%options%speculative_sampling_lookahead+1)
-        integer :: target_output_token_id
-        real(sp) :: target_tokens_probs(size(input_logits))
-
         real(sp) :: todo_occurrence(size(input_logits))
-        real(sp) :: r, draft_prob, target_prob
-        integer :: n, t, last_accepted_index, last_token_id, lookahead, max_tokens, draft_token_id
-        logical :: end_of_generation, all_tokens_accepted
+
+        integer :: n, t, last_accepted_index, last_token_id, lookahead, max_tokens
+        logical :: end_of_generation, all_tokens_accepted, accept_draft
 
         lookahead = self%options%speculative_sampling_lookahead
         max_tokens = self%options%generation%max_token_limit
@@ -242,26 +240,15 @@ contains
             sampling_loop: do t = 1, lookahead
                 if (signal_received) exit main_loop
 
+                n = n + 1
                 last_accepted_index = last_accepted_index + 1
-                draft_token_id = draft_token_ids(t)
 
-                todo_occurrence = 0
-                target_output_token_id = generate_next_token(target_logits(:, t), todo_occurrence, self%options%generation, end_of_generation, output_probs=target_tokens_probs)
-                target_prob = target_tokens_probs(draft_token_id+1)
+                last_token_id = self%sample_token(draft_token_ids(t), draft_tokens_probs(:, t), target_logits(:, t), accept_draft)
+                if (last_token_id == 0) exit main_loop
 
-                draft_prob = draft_tokens_probs(draft_token_id+1, t)
-                call random_number(r)
+                call self%print_token(last_token_id)
 
-                if (r < min(1.0, target_prob / draft_prob)) then
-                    last_token_id = draft_token_id
-                    if (last_token_id == 0) exit main_loop
-                    call self%print_token(last_token_id)
-                    n = n + 1
-                else
-                    last_token_id = sample_once_from_multinomial(make_probs_for_resampling(target_tokens_probs, draft_tokens_probs(:, t))) - 1
-                    if (last_token_id == 0) exit main_loop
-                    call self%print_token(last_token_id)
-                    n = n + 1
+                if (.not. accept_draft) then
                     all_tokens_accepted = .false.
                     exit sampling_loop
                 end if
@@ -284,6 +271,37 @@ contains
 
         tokens_count = n
     end subroutine
+
+    function inference_sample_token(self, draft_token_id, draft_probs, target_logits, accept_draft) result(sampled_token_id)
+        class(inference), intent(in) :: self
+        integer, intent(in) :: draft_token_id
+        real(sp), dimension(self%model%vocab_size), intent(in) :: draft_probs, target_logits
+        logical, intent(out) :: accept_draft
+        integer :: sampled_token_id
+
+        real(sp) :: target_probs(size(target_logits))
+        real(sp) :: todo_occurrence(size(target_logits))
+        real(sp) :: r, draft_prob, target_prob
+        integer :: target_token_id
+        logical :: end_of_generation
+
+        todo_occurrence = 0 ! TODO
+        target_token_id = generate_next_token(target_logits, todo_occurrence, self%options%generation, end_of_generation, output_probs=target_probs)
+
+        target_prob = target_probs(draft_token_id+1)
+        draft_prob = draft_probs(draft_token_id+1)
+
+        call random_number(r)
+
+        accept_draft = r < min(1.0, target_prob / draft_prob)
+
+        if (accept_draft) then
+            sampled_token_id = draft_token_id
+            return
+        end if
+
+        sampled_token_id = sample_once_from_multinomial(make_probs_for_resampling(target_probs, draft_probs)) - 1
+    end function
 
     subroutine draft_tokens_generation(self, start_token_id, lookahead, draft_states, draft_token_ids, draft_tokens_probs)
         class(inference), intent(in) :: self
