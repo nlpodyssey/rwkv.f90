@@ -4,7 +4,6 @@
 module mod_rwkv_lm
     use mod_real_precision
     use mod_state
-    use mod_hidden_states
     use mod_layer_norm
     use mod_rwkv_layer
     use mod_functions, only : layer_norm_2d
@@ -143,7 +142,7 @@ contains
         end if
 
         do i = 1, size(self%layers)
-            encoded = self%layers(i)%forward(encoded, state%layers(i))
+            encoded = self%layers(i)%forward(encoded, state, i)
         end do
 
         output = matmul(self%proj, self%ln_out%forward(encoded))
@@ -169,7 +168,7 @@ contains
         end if
 
         do i = 1, size(self%layers)
-            encoded = self%layers(i)%forward(encoded, state%layers(i))
+            encoded = self%layers(i)%forward(encoded, state, i)
         end do
 
         last_encoded = encoded(:, size(encoded, 2))
@@ -181,7 +180,7 @@ contains
         class(rwkv_lm_type), intent(in) :: self
         integer, intent(in) :: x(:)
         type(state_type), intent(in) :: initial_state
-        type(hidden_states_type), intent(inout) :: hidden_states
+        type(state_type), intent(inout) :: hidden_states(size(x))
 
         real(sp) :: encoded(self%d_model, size(x))
         real(sp) :: output(self%vocab_size, size(x))
@@ -195,7 +194,7 @@ contains
         end if
         
         do i = 1, size(self%layers)
-            encoded = self%layers(i)%forward(encoded, initial_state%layers(i), hidden_states%layers(i))
+            encoded = self%layers(i)%forward(encoded, initial_state, hidden_states, i)
         end do
 
         output = matmul(self%proj, self%ln_out%forward(encoded))

@@ -6,8 +6,7 @@ module mod_rwkv_layer
     use mod_layer_norm
     use mod_channel_mix
     use mod_time_mix
-    use mod_state, only: layer_state_type
-    use mod_hidden_states, only: layer_hidden_states_type
+    use mod_state, only: state_type
     implicit none
     private
     public :: rwkv_layer_type
@@ -54,35 +53,38 @@ contains
         if (iostat /= 0) return
     end subroutine
 
-    function forward_single(self, x, state) result(y)
+    function forward_single(self, x, state, layer_index) result(y)
         class(rwkv_layer_type), intent(in) :: self
         real(sp), intent(in) :: x(:)
-        type(layer_state_type), intent(inout) :: state
+        type(state_type), intent(inout) :: state
+        integer, intent(in) :: layer_index
         real(sp), allocatable :: y(:)
 
-        y = x + self%time_mix%forward(self%ln1%forward(x), state)
-        y = y + self%channel_mix%forward(self%ln2%forward(y), state)
+        y = x + self%time_mix%forward(self%ln1%forward(x), state, layer_index)
+        y = y + self%channel_mix%forward(self%ln2%forward(y), state, layer_index)
     end function
 
-    function forward_batch(self, x, state) result(y)
+    function forward_batch(self, x, state, layer_index) result(y)
         class(rwkv_layer_type), intent(in) :: self
         real(sp), intent(in) :: x(:,:)
-        type(layer_state_type), intent(inout) :: state
+        type(state_type), intent(inout) :: state
+        integer, intent(in) :: layer_index
         real(sp), allocatable :: y(:,:)
 
-        y = x + self%time_mix%forward(self%ln1%forward(x), state)
-        y = y + self%channel_mix%forward(self%ln2%forward(y), state)
+        y = x + self%time_mix%forward(self%ln1%forward(x), state, layer_index)
+        y = y + self%channel_mix%forward(self%ln2%forward(y), state, layer_index)
     end function
 
-    function forward_batch_with_hidden_states(self, x, init_state, hidden_states) result(y)
+    function forward_batch_with_hidden_states(self, x, init_state, hidden_states, layer_index) result(y)
         class(rwkv_layer_type), intent(in) :: self
         real(sp), intent(in) :: x(:,:)
-        type(layer_state_type), intent(in) :: init_state
-        type(layer_hidden_states_type), intent(inout) :: hidden_states
+        type(state_type), intent(in) :: init_state
+        type(state_type), intent(inout) :: hidden_states(size(x, 2))
+        integer, intent(in) :: layer_index
         real(sp), allocatable :: y(:,:)
 
-        y = x + self%time_mix%forward(self%ln1%forward(x), init_state, hidden_states)
-        y = y + self%channel_mix%forward(self%ln2%forward(y), init_state, hidden_states)
+        y = x + self%time_mix%forward(self%ln1%forward(x), init_state, hidden_states, layer_index)
+        y = y + self%channel_mix%forward(self%ln2%forward(y), init_state, hidden_states, layer_index)
     end function
 
 end module

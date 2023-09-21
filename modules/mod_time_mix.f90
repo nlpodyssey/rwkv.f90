@@ -5,7 +5,6 @@ module mod_time_mix
     use mod_real_precision
     use mod_arr_ops_broadcasting
     use mod_state
-    use mod_hidden_states
     use mod_token_shift
     implicit none
     private
@@ -76,64 +75,66 @@ contains
         if (iostat /= 0) return
     end subroutine
 
-    function forward_single(self, x, state) result(out)
+    function forward_single(self, x, state, layer_index) result(out)
         use mod_functions, only: sigmoid
 
         class(time_mix_type), intent(in) :: self
         real(sp), intent(in) :: x(:)
-        type(layer_state_type), intent(inout) :: state
+        type(state_type), intent(inout) :: state
+        integer, intent(in) :: layer_index
 
         real(sp), dimension(size(x)) :: k, v, r, ww, p, e1, e2, a, b, rwkv, out
 
         !$omp parallel sections
         !$omp section
-        k = matmul(self%wk, self%mk * x + (1.0 - self%mk) * state%att_xx)
+        k = matmul(self%wk, self%mk * x + (1.0 - self%mk) * state%att_xx(:, layer_index))
         !$omp section
-        v = matmul(self%wv, self%mv * x + (1.0 - self%mv) * state%att_xx)
+        v = matmul(self%wv, self%mv * x + (1.0 - self%mv) * state%att_xx(:, layer_index))
         !$omp section
-        r = matmul(self%wr, self%mr * x + (1.0 - self%mr) * state%att_xx)
+        r = matmul(self%wr, self%mr * x + (1.0 - self%mr) * state%att_xx(:, layer_index))
         !$omp end parallel sections
 
         ww = k + self%tf
-        p = max(state%att_pp, ww)
-        e1 = exp(state%att_pp - p)
+        p = max(state%att_pp(:, layer_index), ww)
+        e1 = exp(state%att_pp(:, layer_index) - p)
         e2 = exp(ww - p)
-        a = e1 * state%att_aa + e2 * v
-        b = e1 * state%att_bb + e2
+        a = e1 * state%att_aa(:, layer_index) + e2 * v
+        b = e1 * state%att_bb(:, layer_index) + e2
         rwkv = sigmoid(r) * (a / b)
         out = matmul(self%wo, rwkv)
 
-        ww = state%att_pp + self%td
+        ww = state%att_pp(:, layer_index) + self%td
         p = max(ww, k)
         e1 = exp(ww - p)
         e2 = exp(k - p)
 
-        state%att_xx = x
-        state%att_aa = e1 * state%att_aa + e2 * v
-        state%att_bb = e1 * state%att_bb + e2
-        state%att_pp = p
+        state%att_xx(:, layer_index) = x
+        state%att_aa(:, layer_index) = e1 * state%att_aa(:, layer_index) + e2 * v
+        state%att_bb(:, layer_index) = e1 * state%att_bb(:, layer_index) + e2
+        state%att_pp(:, layer_index) = p
     end function
 
-    function forward_batch(self, x, state) result(out)
+    function forward_batch(self, x, state, layer_index) result(out)
         use mod_functions, only: sigmoid
 
         class(time_mix_type), intent(in) :: self
         real(sp), intent(in) :: x(:,:)
-        type(layer_state_type), intent(inout) :: state
+        type(state_type), intent(inout) :: state
+        integer, intent(in) :: layer_index
 
         integer :: i, n
         real(sp), dimension(self%dm, size(x, 2)) :: xx, k, v, r, sx, out
         real(sp), dimension(self%dm) :: ww, p, e1, e2, a, b, aa, bb, pp
 
-        xx = token_shift(state%att_xx, x)
+        xx = token_shift(state%att_xx(:, layer_index), x)
 
         k = matmul(self%wk, self%mk * x + (1.0 - self%mk) * xx)
         v = matmul(self%wv, self%mv * x + (1.0 - self%mv) * xx)
         r = matmul(self%wr, self%mr * x + (1.0 - self%mr) * xx)
 
-        aa = state%att_aa
-        bb = state%att_bb
-        pp = state%att_pp
+        aa = state%att_aa(:, layer_index)
+        bb = state%att_bb(:, layer_index)
+        pp = state%att_pp(:, layer_index)
 
         n = size(x, 2)
 
@@ -157,35 +158,36 @@ contains
         end do
 
         ! Update state
-        state%att_xx = x(:, n)
-        state%att_aa = aa
-        state%att_bb = bb
-        state%att_pp = pp
+        state%att_xx(:, layer_index) = x(:, n)
+        state%att_aa(:, layer_index) = aa
+        state%att_bb(:, layer_index) = bb
+        state%att_pp(:, layer_index) = pp
 
         out = matmul(self%wo, sigmoid(r) * sx)
     end function
 
-    function forward_batch_with_hidden_states(self, x, init_state, hidden_states) result(out)
+    function forward_batch_with_hidden_states(self, x, init_state, hidden_states, layer_index) result(out)
         use mod_functions, only: sigmoid
 
         class(time_mix_type), intent(in) :: self
         real(sp), intent(in) :: x(:,:)
-        type(layer_state_type), intent(in) :: init_state
-        type(layer_hidden_states_type), intent(inout) :: hidden_states
+        type(state_type), intent(in) :: init_state
+        type(state_type), intent(inout) :: hidden_states(size(x, 2))
+        integer, intent(in) :: layer_index
 
         integer :: i, n
         real(sp), dimension(self%dm, size(x, 2)) :: xx, k, v, r, sx, out
         real(sp), dimension(self%dm) :: ww, p, e1, e2, a, b, aa, bb, pp
 
-        xx = token_shift(init_state%att_xx, x)
+        xx = token_shift(init_state%att_xx(:, layer_index), x)
 
         k = matmul(self%wk, self%mk * x + (1.0 - self%mk) * xx)
         v = matmul(self%wv, self%mv * x + (1.0 - self%mv) * xx)
         r = matmul(self%wr, self%mr * x + (1.0 - self%mr) * xx)
 
-        aa = init_state%att_aa
-        bb = init_state%att_bb
-        pp = init_state%att_pp
+        aa = init_state%att_aa(:, layer_index)
+        bb = init_state%att_bb(:, layer_index)
+        pp = init_state%att_pp(:, layer_index)
 
         n = size(x, 2)
 
@@ -207,10 +209,10 @@ contains
             bb = e1 * bb + e2
             pp = p
 
-            hidden_states%att_xx(:, i) = x(:, i)
-            hidden_states%att_aa(:, i) = aa
-            hidden_states%att_bb(:, i) = bb
-            hidden_states%att_pp(:, i) = pp
+            hidden_states(i)%att_xx(:, layer_index) = x(:, i)
+            hidden_states(i)%att_aa(:, layer_index) = aa
+            hidden_states(i)%att_bb(:, layer_index) = bb
+            hidden_states(i)%att_pp(:, layer_index) = pp
         end do
 
         out = matmul(self%wo, sigmoid(r) * sx)

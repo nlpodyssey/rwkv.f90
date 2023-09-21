@@ -59,12 +59,11 @@ target_sources(
         modules/mod_rwkv_layer.f90
         modules/mod_rwkv_lm.f90
         modules/mod_state.f90
-        modules/mod_hidden_states.f90
         modules/mod_stats.f90
         modules/mod_time_mix.f90
         modules/mod_timer.f90
         modules/mod_token_shift.f90
         modules/mod_trie_tokenizer.f90
-        PUBLIC
-        lib_rwkv.f90
+       # PUBLIC
+       # lib_rwkv.f90
 )

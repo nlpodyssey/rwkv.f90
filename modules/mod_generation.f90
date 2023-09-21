@@ -11,7 +11,7 @@ module mod_generation
     public :: generate_next_token, generation_options
 
     type :: generation_options
-        real(sp) :: temp = 0.7
+        real(sp) :: temp = 0.0
         real(sp) :: alpha_frequency = 0.4 ! Frequency Penalty
         real(sp) :: alpha_presence= 0.4 ! Presence Penalty
         real(sp) :: alpha_decay = 0.996 ! Gradually decay the penalty

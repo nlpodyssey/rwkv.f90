@@ -5,7 +5,6 @@ module mod_channel_mix
     use mod_real_precision
     use mod_arr_ops_broadcasting
     use mod_state
-    use mod_hidden_states
     use mod_token_shift
     implicit none
     private
@@ -64,34 +63,37 @@ contains
         if (iostat /= 0) return
     end subroutine
 
-    function forward_single(self, x, state) result(rkv)
+    function forward_single(self, x, state, layer_index) result(rkv)
         use mod_functions, only: relu, sigmoid
 
         class(channel_mix_type), intent(in) :: self
         real(sp), intent(in) :: x(:)
-        type(layer_state_type), intent(inout) :: state
+        type(state_type), intent(inout) :: state
+        integer, intent(in) :: layer_index
+
         real(sp), dimension(size(x)) :: r, kv, rkv
         real(sp) :: k(size(self%wk, 1))
 
         !$omp parallel sections
         !$omp section
-        k = matmul(self%wk, self%mk * x + (1.0 - self%mk) * state%ffn_xx)
+        k = matmul(self%wk, self%mk * x + (1.0 - self%mk) * state%ffn_xx(:, layer_index))
         !$omp section
-        r = matmul(self%wr, self%mr * x + (1.0 - self%mr) * state%ffn_xx)
+        r = matmul(self%wr, self%mr * x + (1.0 - self%mr) * state%ffn_xx(:, layer_index))
         !$omp end parallel sections
 
         kv = matmul(self%wv, relu(k) ** 2)
         rkv = sigmoid(r) * kv
 
-        state%ffn_xx = x ! update state
+        state%ffn_xx(:, layer_index) = x ! update state
     end function
 
-    function forward_batch(self, x, state) result(rkv)
+    function forward_batch(self, x, state, layer_index) result(rkv)
         use mod_functions, only: relu, sigmoid
 
         class(channel_mix_type), intent(in) :: self
         real(sp), intent(in) :: x(:,:) ! d_model, batch_size
-        type(layer_state_type), intent(inout) :: state
+        type(state_type), intent(inout) :: state
+        integer, intent(in) :: layer_index
 
         real(sp), dimension(self%dm, size(x, 2)) :: xx, kv, rkv
         real(sp) :: r(self%dm, size(x, 2)), k(self%hidden, size(x, 2))
@@ -99,23 +101,24 @@ contains
 
         n = size(x, 2)
 
-        xx = token_shift(state%ffn_xx, x)
+        xx = token_shift(state%ffn_xx(:, layer_index), x)
 
         k = matmul(self%wk, self%mk * x + (1.0 - self%mk) * xx)
         r = matmul(self%wr, self%mr * x + (1.0 - self%mr) * xx)
         kv = matmul(self%wv, relu(k) ** 2)
         rkv = sigmoid(r) * kv
 
-        state%ffn_xx = x(:, n) ! Update state
+        state%ffn_xx(:, layer_index) = x(:, n) ! Update state
     end function
 
-    function forward_batch_with_hidden_states(self, x, init_state, hidden_states) result(rkv)
+    function forward_batch_with_hidden_states(self, x, init_state, hidden_states, layer_index) result(rkv)
         use mod_functions, only: relu, sigmoid
 
         class(channel_mix_type), intent(in) :: self
         real(sp), intent(in) :: x(:,:) ! d_model, batch_size
-        type(layer_state_type), intent(in) :: init_state
-        type(layer_hidden_states_type), intent(inout) :: hidden_states
+        type(state_type), intent(in) :: init_state
+        type(state_type), intent(inout) :: hidden_states(size(x, 2))
+        integer, intent(in) :: layer_index
 
         real(sp), dimension(self%dm, size(x, 2)) :: xx, kv, rkv
         real(sp) :: r(self%dm, size(x, 2)), k(self%hidden, size(x, 2))
@@ -123,7 +126,7 @@ contains
 
         n = size(x, 2)
 
-        xx = token_shift(init_state%ffn_xx, x)
+        xx = token_shift(init_state%ffn_xx(:, layer_index), x)
 
         k = matmul(self%wk, self%mk * x + (1.0 - self%mk) * xx)
         r = matmul(self%wr, self%mr * x + (1.0 - self%mr) * xx)
@@ -131,7 +134,7 @@ contains
         rkv = sigmoid(r) * kv
 
         do i = 1, n
-            hidden_states%ffn_xx(:, i) = x(:, i)
+            hidden_states(i)%ffn_xx(:, layer_index) = x(:, i)
         end do
     end function
 
