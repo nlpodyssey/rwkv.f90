@@ -249,17 +249,18 @@ contains
 
             call copy_state(draft_states(last_accepted_index), draft_state)
 
-            if (all_tokens_accepted) then
-                draft_logits = self%draft_model%forward(last_token_id, draft_state)
-                call copy_state(target_states(lookahead+1), state)
-                todo_occurrence = 0 ! TODO
-                last_token_id = generate_next_token(target_logits(:, lookahead+1), todo_occurrence, self%options%generation, end_of_generation)
-                if (end_of_generation) exit main_loop
-                call self%print_token(last_token_id)
-                n = n + 1
-            else
+            if (.not. all_tokens_accepted) then
                 call copy_state(target_states(last_accepted_index), state)
+                cycle
             end if
+
+            draft_logits = self%draft_model%forward(last_token_id, draft_state)
+            call copy_state(target_states(lookahead+1), state)
+            todo_occurrence = 0 ! TODO
+            last_token_id = generate_next_token(target_logits(:, lookahead+1), todo_occurrence, self%options%generation, end_of_generation)
+            if (end_of_generation) exit main_loop
+            call self%print_token(last_token_id)
+            n = n + 1
         end do main_loop
 
         tokens_count = n
