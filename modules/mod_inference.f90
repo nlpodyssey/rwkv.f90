@@ -206,8 +206,9 @@ contains
         real(sp) :: target_logits(size(input_logits), self%options%speculative_sampling_lookahead+1)
         real(sp) :: todo_occurrence(size(input_logits))
 
-        integer :: n, t, last_accepted_index, last_token_id, lookahead, max_tokens
-        logical :: end_of_generation, all_tokens_accepted, accept_draft
+        integer :: n, t, k, last_accepted_index, last_token_id, lookahead, max_tokens
+        logical :: end_of_generation, all_tokens_accepted
+        integer, allocatable :: sampled_tokens_id(:)
 
         lookahead = self%options%speculative_sampling_lookahead
         max_tokens = self%options%generation%max_token_limit
@@ -233,26 +234,18 @@ contains
             call draft_tokens_generation(self, last_token_id, lookahead, draft_states, draft_token_ids, draft_tokens_probs)
 
             target_logits = self%model%forward_batch_with_hidden_states([last_token_id, draft_token_ids], state, target_states)
+            sampled_tokens_id = inference_sample_tokens(self, draft_token_ids, draft_tokens_probs, target_logits, all_tokens_accepted, last_accepted_index)
 
-            last_accepted_index = 0
+            n = n + size(sampled_tokens_id)
 
-            all_tokens_accepted = .true.
-            sampling_loop: do t = 1, lookahead
-                if (signal_received) exit main_loop
-
-                n = n + 1
-                last_accepted_index = last_accepted_index + 1
-
-                last_token_id = self%sample_token(draft_token_ids(t), draft_tokens_probs(:, t), target_logits(:, t), accept_draft)
-                if (last_token_id == 0) exit main_loop
-
-                call self%print_token(last_token_id)
-
-                if (.not. accept_draft) then
-                    all_tokens_accepted = .false.
-                    exit sampling_loop
+            do k = 1, size(sampled_tokens_id)
+                if (sampled_tokens_id(k) /= 0) then
+                    call self%print_token(sampled_tokens_id(k))
                 end if
-            end do sampling_loop
+            end do
+
+            last_token_id = sampled_tokens_id(size(sampled_tokens_id))
+            if (last_token_id == 0) exit main_loop
 
             call copy_state(draft_states(last_accepted_index), draft_state)
 
@@ -271,6 +264,38 @@ contains
 
         tokens_count = n
     end subroutine
+
+    function inference_sample_tokens(self, draft_token_ids, draft_tokens_probs, target_logits, all_draft_tokens_accepted, k) result(sampled_tokens_id)
+        class(inference), intent(in) :: self
+        integer, intent(in) :: draft_token_ids(self%options%speculative_sampling_lookahead)
+        real(sp), intent(in) :: draft_tokens_probs(self%model%vocab_size, self%options%speculative_sampling_lookahead)
+        real(sp), intent(in) :: target_logits(self%model%vocab_size, self%options%speculative_sampling_lookahead+1)
+        logical, intent(out) :: all_draft_tokens_accepted
+        integer, intent(out) :: k
+
+        integer :: sampled_tokens_id_(size(draft_token_ids))
+        integer, allocatable :: sampled_tokens_id(:)
+        logical :: accept_draft
+        integer :: t
+
+        all_draft_tokens_accepted = .true.
+
+        k = 0
+        do t = 1, self%options%speculative_sampling_lookahead
+            k = k + 1
+
+            sampled_tokens_id_(t) = self%sample_token(draft_token_ids(t), draft_tokens_probs(:, t), target_logits(:, t), accept_draft)
+
+            if (.not. accept_draft) then
+                all_draft_tokens_accepted = .false.
+                exit
+            end if
+
+            if (sampled_tokens_id_(t) == 0) exit
+        end do
+
+        sampled_tokens_id = sampled_tokens_id_(1:k)
+    end function
 
     function inference_sample_token(self, draft_token_id, draft_probs, target_logits, accept_draft) result(sampled_token_id)
         class(inference), intent(in) :: self
