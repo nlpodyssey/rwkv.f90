@@ -197,73 +197,70 @@ contains
         type(state_type), intent(inout) :: state, draft_state
         integer, intent(out) :: tokens_count
 
-        type(state_type) :: draft_states(self%options%speculative_sampling_lookahead)
-        real(sp) :: draft_logits(size(input_logits))
-        integer :: draft_token_ids(self%options%speculative_sampling_lookahead)
-        real(sp) :: draft_tokens_probs(size(input_logits), self%options%speculative_sampling_lookahead)
+        associate( &
+            lookahead => self%options%speculative_sampling_lookahead, &
+            max_tokens => self%options%generation%max_token_limit, &
+            draft_model => self%draft_model, &
+            target_model => self%model, &
+            gen_opts => self%options%generation &
+        )
+            block
+                type(state_type) :: draft_states(lookahead)
+                real(sp) :: draft_logits(size(input_logits))
+                integer :: draft_token_ids(lookahead)
+                real(sp) :: draft_tokens_probs(size(input_logits), lookahead)
 
-        type(state_type) :: target_states(self%options%speculative_sampling_lookahead+1)
-        real(sp) :: target_logits(size(input_logits), self%options%speculative_sampling_lookahead+1)
-        real(sp) :: todo_occurrence(size(input_logits))
+                type(state_type) :: target_states(lookahead+1)
+                real(sp) :: target_logits(size(input_logits), lookahead+1)
 
-        integer :: n, t, k, last_accepted_index, last_token_id, lookahead, max_tokens
-        logical :: end_of_generation, all_tokens_accepted
-        integer, allocatable :: sampled_tokens_id(:)
+                integer :: t, k, last_accepted_index, last_token_id
+                logical :: end_of_generation, all_tokens_accepted
+                integer, allocatable :: sampled_tokens_id(:)
 
-        lookahead = self%options%speculative_sampling_lookahead
-        max_tokens = self%options%generation%max_token_limit
+                tokens_count = 0
+                draft_states = [ (draft_model%init_state(), t = 1, lookahead) ]
+                target_states = [ (target_model%init_state(), t = 1, lookahead+1) ]
+                
+                last_token_id = generate_next_token(input_logits, opts=gen_opts, end_of_generation=end_of_generation)
+                if (end_of_generation) return
+                call self%print_token(last_token_id)
+                
+                main_loop: do while(tokens_count < max_tokens)
+                    if (signal_received) exit main_loop
 
-        do t = 1, lookahead
-            draft_states(t) = state_type(self%draft_model%d_model, self%draft_model%n_layers)
-        end do
+                    call copy_state(draft_state, draft_states(1))
+                    call draft_tokens_generation(self, last_token_id, lookahead, draft_states, draft_token_ids, draft_tokens_probs)
 
-        do t = 1, lookahead+1
-            target_states(t) = state_type(self%model%d_model, self%model%n_layers)
-        end do
+                    target_logits = target_model%forward_batch_with_hidden_states([last_token_id, draft_token_ids], state, target_states)
+                    sampled_tokens_id = inference_sample_tokens(self, draft_token_ids, draft_tokens_probs, target_logits, all_tokens_accepted, last_accepted_index)
 
-        todo_occurrence = 0
-        last_token_id = generate_next_token(input_logits, todo_occurrence, self%options%generation, end_of_generation)
-        if (end_of_generation) return
-        call self%print_token(last_token_id)
+                    tokens_count = tokens_count + size(sampled_tokens_id)
 
-        n = 0
-        main_loop: do while(n < max_tokens)
-            if (signal_received) exit main_loop
+                    do k = 1, size(sampled_tokens_id)
+                        if (sampled_tokens_id(k) /= 0) then
+                            call self%print_token(sampled_tokens_id(k))
+                        end if
+                    end do
 
-            call copy_state(draft_state, draft_states(1))
-            call draft_tokens_generation(self, last_token_id, lookahead, draft_states, draft_token_ids, draft_tokens_probs)
+                    last_token_id = sampled_tokens_id(size(sampled_tokens_id))
+                    if (last_token_id == 0) exit main_loop
 
-            target_logits = self%model%forward_batch_with_hidden_states([last_token_id, draft_token_ids], state, target_states)
-            sampled_tokens_id = inference_sample_tokens(self, draft_token_ids, draft_tokens_probs, target_logits, all_tokens_accepted, last_accepted_index)
+                    call copy_state(draft_states(last_accepted_index), draft_state)
 
-            n = n + size(sampled_tokens_id)
+                    if (.not. all_tokens_accepted) then
+                        call copy_state(target_states(last_accepted_index), state)
+                        cycle
+                    end if
 
-            do k = 1, size(sampled_tokens_id)
-                if (sampled_tokens_id(k) /= 0) then
-                    call self%print_token(sampled_tokens_id(k))
-                end if
-            end do
-
-            last_token_id = sampled_tokens_id(size(sampled_tokens_id))
-            if (last_token_id == 0) exit main_loop
-
-            call copy_state(draft_states(last_accepted_index), draft_state)
-
-            if (.not. all_tokens_accepted) then
-                call copy_state(target_states(last_accepted_index), state)
-                cycle
-            end if
-
-            draft_logits = self%draft_model%forward(last_token_id, draft_state)
-            call copy_state(target_states(lookahead+1), state)
-            todo_occurrence = 0 ! TODO
-            last_token_id = generate_next_token(target_logits(:, lookahead+1), todo_occurrence, self%options%generation, end_of_generation)
-            if (end_of_generation) exit main_loop
-            call self%print_token(last_token_id)
-            n = n + 1
-        end do main_loop
-
-        tokens_count = n
+                    draft_logits = draft_model%forward(last_token_id, draft_state)
+                    call copy_state(target_states(lookahead+1), state)
+                    last_token_id = generate_next_token(target_logits(:, lookahead+1), opts=gen_opts, end_of_generation=end_of_generation)
+                    if (end_of_generation) exit main_loop
+                    call self%print_token(last_token_id)
+                    tokens_count = tokens_count + 1
+                end do main_loop
+            end block
+        end associate
     end subroutine
 
     function inference_sample_tokens(self, draft_token_ids, draft_tokens_probs, target_logits, all_draft_tokens_accepted, k) result(sampled_tokens_id)

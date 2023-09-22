@@ -23,7 +23,7 @@ contains
 
     function generate_next_token(input_logits, occurrence, opts, end_of_generation, output_probs) result(token_id)
         real(sp), intent(in) :: input_logits(:)
-        real(sp), intent(inout) :: occurrence(size(input_logits))
+        real(sp), optional, intent(inout) :: occurrence(size(input_logits))
         type(generation_options), intent(in) :: opts
         logical, intent(out) :: end_of_generation
         real(sp), intent(out), optional :: output_probs(size(input_logits))
@@ -37,9 +37,11 @@ contains
         end_of_generation = .false.
         logits = input_logits
 
-        where (occurrence /= 0)
-            logits = logits - (opts%alpha_presence + occurrence * opts%alpha_frequency)
-        end where
+        if (present(occurrence)) then
+            where (occurrence /= 0)
+                logits = logits - (opts%alpha_presence + occurrence * opts%alpha_frequency)
+            end where
+        end if
 
         if (opts%temp /= 1) then
             call apply_temperature(logits, opts%temp)
@@ -60,11 +62,13 @@ contains
             return
         end if
 
-        where (occurrence /= 0)
-            occurrence = occurrence * opts%alpha_decay
-        end where
+        if (present(occurrence)) then
+            where (occurrence /= 0)
+                occurrence = occurrence * opts%alpha_decay
+            end where
 
-        occurrence(token_id) = occurrence(token_id) + 1
+            occurrence(token_id) = occurrence(token_id) + 1
+        end if
     end function
 
     pure subroutine apply_temperature(logits, temp)
