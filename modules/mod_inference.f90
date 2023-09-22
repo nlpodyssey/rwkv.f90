@@ -272,9 +272,9 @@ contains
         real(sp), intent(in) :: target_logits(self%model%vocab_size, self%options%speculative_sampling_lookahead+1)
         logical, intent(out) :: all_draft_tokens_accepted
         integer, intent(out) :: k
+        integer, allocatable :: sampled_tokens_id(:)
 
         integer :: sampled_tokens_id_(size(draft_token_ids))
-        integer, allocatable :: sampled_tokens_id(:)
         logical :: accept_draft
         integer :: t
 
