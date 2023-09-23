@@ -231,15 +231,13 @@ contains
 
             target_logits = self%model%forward_batch_with_hidden_states([last_token_id, draft_token_ids], state, target_states)
             sampled_tokens_id = inference_sample_tokens(self, draft_token_ids, draft_tokens_probs, target_logits, all_tokens_accepted, last_accepted_index)
-
+            last_token_id = sampled_tokens_id(size(sampled_tokens_id))
             tokens_count = tokens_count + size(sampled_tokens_id)
 
             call self%print_tokens(sampled_tokens_id, skip_end_token=.true.)
-
-            last_token_id = sampled_tokens_id(size(sampled_tokens_id))
-            if (last_token_id == 0) exit main_loop
-
             call copy_state(draft_states(last_accepted_index), draft_state)
+
+            if (last_token_id == 0) exit main_loop
 
             if (.not. all_tokens_accepted) then
                 call copy_state(target_states(last_accepted_index), state)
