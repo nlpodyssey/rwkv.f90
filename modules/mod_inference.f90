@@ -41,6 +41,7 @@ module mod_inference
         procedure, private :: sample_token => inference_sample_token
         procedure, private :: load_tokenizer => inference_load_tokenizer
         procedure, private :: print_token => inference_print_token
+        procedure, private :: print_tokens => inference_print_tokens
     end type
 
     interface inference
@@ -206,28 +207,23 @@ contains
         real(sp) :: target_logits(size(input_logits), self%options%speculative_sampling_lookahead+1)
         real(sp) :: todo_occurrence(size(input_logits))
 
-        integer :: n, t, k, last_accepted_index, last_token_id, lookahead, max_tokens
+        integer :: t, last_accepted_index, last_token_id, lookahead, max_tokens
         logical :: end_of_generation, all_tokens_accepted
         integer, allocatable :: sampled_tokens_id(:)
 
         lookahead = self%options%speculative_sampling_lookahead
         max_tokens = self%options%generation%max_token_limit
 
-        do t = 1, lookahead
-            draft_states(t) = state_type(self%draft_model%d_model, self%draft_model%n_layers)
-        end do
-
-        do t = 1, lookahead+1
-            target_states(t) = state_type(self%model%d_model, self%model%n_layers)
-        end do
+        draft_states = [ (self%draft_model%init_state(), t = 1, lookahead) ]
+        target_states = [ (self%model%init_state(), t = 1, lookahead+1) ]
 
         todo_occurrence = 0
         last_token_id = generate_next_token(input_logits, todo_occurrence, self%options%generation, end_of_generation)
         if (end_of_generation) return
         call self%print_token(last_token_id)
 
-        n = 0
-        main_loop: do while(n < max_tokens)
+        tokens_count = 0
+        main_loop: do while(tokens_count < max_tokens)
             if (signal_received) exit main_loop
 
             call copy_state(draft_state, draft_states(1))
@@ -236,13 +232,9 @@ contains
             target_logits = self%model%forward_batch_with_hidden_states([last_token_id, draft_token_ids], state, target_states)
             sampled_tokens_id = inference_sample_tokens(self, draft_token_ids, draft_tokens_probs, target_logits, all_tokens_accepted, last_accepted_index)
 
-            n = n + size(sampled_tokens_id)
+            tokens_count = tokens_count + size(sampled_tokens_id)
 
-            do k = 1, size(sampled_tokens_id)
-                if (sampled_tokens_id(k) /= 0) then
-                    call self%print_token(sampled_tokens_id(k))
-                end if
-            end do
+            call self%print_tokens(sampled_tokens_id, skip_end_token=.true.)
 
             last_token_id = sampled_tokens_id(size(sampled_tokens_id))
             if (last_token_id == 0) exit main_loop
@@ -260,10 +252,9 @@ contains
             last_token_id = generate_next_token(target_logits(:, lookahead+1), todo_occurrence, self%options%generation, end_of_generation)
             if (end_of_generation) exit main_loop
             call self%print_token(last_token_id)
-            n = n + 1
+            tokens_count = tokens_count + 1
         end do main_loop
 
-        tokens_count = n
     end subroutine
 
     function inference_sample_tokens(self, draft_token_ids, draft_tokens_probs, target_logits, all_draft_tokens_accepted, k) result(sampled_tokens_id)
@@ -362,6 +353,26 @@ contains
         class(inference), intent(in) :: self
         integer, intent(in) :: token_id
         call print_token(self%tokenizer%decode([token_id]))
+    end subroutine
+
+    subroutine inference_print_tokens(self, token_ids, skip_end_token)
+        class(inference), intent(in) :: self
+        integer, intent(in) :: token_ids(:)
+        logical, intent(in), optional :: skip_end_token
+
+        integer :: i
+
+        if (present(skip_end_token)) then
+            do i = 1, size(token_ids)
+                if (token_ids(i) /= 0) then
+                    call print_token(self%tokenizer%decode([token_ids(i)]))
+                end if
+            end do
+
+            return
+        end if
+
+        call print_token(self%tokenizer%decode(token_ids))
     end subroutine
 
     pure function make_probs_for_resampling(target_probs, draft_probs) result(res)
