@@ -5,49 +5,47 @@ module mod_state
     use mod_real_precision
     implicit none
     private
-    public :: state_type, copy_state
+    public :: make_state, make_states, ffn_xx, att_xx, att_aa, att_bb, att_pp
 
-    type :: state_type
-        ! d_model, n_layers
-        real(sp), allocatable :: ffn_xx(:, :)
-        real(sp), allocatable :: att_xx(:, :)
-        real(sp), allocatable :: att_aa(:, :)
-        real(sp), allocatable :: att_bb(:, :)
-        real(sp), allocatable :: att_pp(:, :)
-    end type
+    enum, bind(C)
+        ! state components
+        enumerator :: ffn_xx = 1
+        enumerator :: att_xx
+        enumerator :: att_aa
+        enumerator :: att_bb
+        enumerator :: att_pp
+    end enum
 
-    interface state_type
-        module procedure :: state_constructor
-    end interface
-    
+    integer, parameter :: n_components = 5
+
 contains
 
-    pure type(state_type) function state_constructor(d_model, n_layers) result(self)
+    pure function make_state(d_model, n_layers) result(state)
         integer, intent(in) :: d_model, n_layers
+        real(sp), allocatable :: state(:, :, :)  ! d_model, n_components, n_layers
 
         if (d_model <= 0 .or. n_layers <= 0) then
-            error stop "Error: n_layers and d_model must be positive integers."
+            error stop "Error: n_layers, d_model, n_states must be positive integers."
         end if
 
-        allocate(self%ffn_xx(d_model, n_layers), self%att_xx(d_model, n_layers), &
-                 self%att_aa(d_model, n_layers), self%att_bb(d_model, n_layers), &
-                 self%att_pp(d_model, n_layers))
+        allocate(state(d_model, n_components, n_layers))
 
-        self%ffn_xx = 0.0
-        self%att_xx = 0.0
-        self%att_aa = 0.0
-        self%att_bb = 0.0
-        self%att_pp = -1e30
+        state = 0.0
+        state(:,att_pp,:) = -1e30
     end function
 
-    pure subroutine copy_state(source, dest)
-        type(state_type), intent(in) :: source
-        type(state_type), intent(inout) :: dest
+    pure function make_states(d_model, n_layers, n_states) result(states)
+        integer, intent(in) :: d_model, n_layers
+        integer, intent(in), optional :: n_states
+        real(sp), allocatable :: states(:, :, :, :) ! d_model, n_components, n_states, n_layers
 
-        dest%ffn_xx = source%ffn_xx
-        dest%att_xx = source%att_xx
-        dest%att_aa = source%att_aa
-        dest%att_bb = source%att_bb
-        dest%att_pp = source%att_pp
-    end subroutine
+        if (d_model <= 0 .or. n_layers <= 0 .or. n_states <= 0) then
+            error stop "Error: n_layers, d_model, n_states must be positive integers."
+        end if
+
+        allocate(states(d_model, n_components, n_states, n_layers))
+
+        states = 0.0
+        states(:,att_pp,:,:) = -1e30
+    end function
 end module

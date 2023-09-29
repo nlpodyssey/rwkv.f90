@@ -24,6 +24,7 @@ module mod_rwkv_lm
     contains
         procedure :: read_params
         procedure :: init_state
+        procedure :: init_states
         procedure :: precompute_layer_norm_embeddings
         procedure, pass :: forward_single
         procedure, pass :: forward_batch
@@ -117,8 +118,15 @@ contains
 
     function init_state(self) result(state)
         class(rwkv_lm_type), intent(in) :: self
-        type(state_type) :: state
-        state = state_type(self%d_model, self%n_layers)
+        real(sp), allocatable :: state(:, :, :)  ! d_model, n_components, n_layers
+        state = make_state(self%d_model, self%n_layers)
+    end function
+
+    function init_states(self, n_states) result(states)
+        class(rwkv_lm_type), intent(in) :: self
+        integer, intent(in) :: n_states
+        real(sp), allocatable :: states(:, :, :, :)  ! d_model, n_components, n_states, n_layers
+        states = make_states(self%d_model, self%n_layers, n_states)
     end function
 
     pure subroutine precompute_layer_norm_embeddings(self)
@@ -130,7 +138,8 @@ contains
     function forward_single(self, x, state) result(output)
         class(rwkv_lm_type), intent(in) :: self
         integer, intent(in) :: x
-        type(state_type), intent(inout) :: state
+        real(sp), intent(inout) :: state(:, :, :) ! d_model, n_components, n_layers
+
         real(sp) :: encoded(size(self%emb, 1))
         real(sp) :: output(size(self%emb, 2))
         integer :: i
@@ -142,7 +151,7 @@ contains
         end if
 
         do i = 1, size(self%layers)
-            encoded = self%layers(i)%forward(encoded, state, i)
+            encoded = self%layers(i)%forward(encoded, state(:, :, i))
         end do
 
         output = matmul(self%proj, self%ln_out%forward(encoded))
@@ -151,7 +160,7 @@ contains
     function forward_batch(self, x, state) result(output)
         class(rwkv_lm_type), intent(in) :: self
         integer, intent(in) :: x(:)
-        type(state_type), intent(inout) :: state
+        real(sp), intent(inout) :: state(:, :, :) ! d_model, n_components, n_layers
 
         real(sp) :: encoded(self%d_model,size(x))
         real(sp) :: last_encoded(self%d_model)
@@ -168,7 +177,7 @@ contains
         end if
 
         do i = 1, size(self%layers)
-            encoded = self%layers(i)%forward(encoded, state, i)
+            encoded = self%layers(i)%forward(encoded, state(:, :, i))
         end do
 
         last_encoded = encoded(:, size(encoded, 2))
@@ -176,11 +185,11 @@ contains
         output = matmul(self%proj, self%ln_out%forward(last_encoded))
     end function
 
-    function forward_batch_with_hidden_states(self, x, initial_state, hidden_states) result(output)
+    function forward_batch_with_hidden_states(self, x, init_state, hidden_states) result(output)
         class(rwkv_lm_type), intent(in) :: self
         integer, intent(in) :: x(:)
-        type(state_type), intent(in) :: initial_state
-        type(state_type), intent(inout) :: hidden_states(size(x))
+        real(sp), intent(in) :: init_state(:, :, :) ! d_model, n_components, n_layers
+        real(sp), intent(inout) :: hidden_states(:, :, :, :) ! d_model, n_components, n_states, n_layers
 
         real(sp) :: encoded(self%d_model, size(x))
         real(sp) :: output(self%vocab_size, size(x))
@@ -194,7 +203,7 @@ contains
         end if
         
         do i = 1, size(self%layers)
-            encoded = self%layers(i)%forward(encoded, initial_state, hidden_states, i)
+            encoded = self%layers(i)%forward(encoded, init_state(:,:,i), hidden_states(:,:,:,i))
         end do
 
         output = matmul(self%proj, self%ln_out%forward(encoded))

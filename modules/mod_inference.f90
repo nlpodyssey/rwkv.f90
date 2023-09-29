@@ -10,7 +10,6 @@ module mod_inference
     use mod_readline, only: readline
     use mod_real_precision, only: sp
     use mod_rwkv_lm, only: rwkv_lm_type, load_rwkv_lm_model
-    use mod_state, only: state_type, copy_state
     use mod_stats, only: sample_once_from_multinomial
     use mod_timer, only: timer
     use mod_trie_tokenizer, only: trie_tokenizer, load_trie_tokenizer
@@ -96,7 +95,7 @@ contains
         character(:), allocatable :: instruction
         character(:), allocatable :: prompt
         logical :: is_eof
-        type(state_type) :: state, draft_state
+        real(sp), dimension(:,:,:), allocatable :: state, draft_state  ! d_model, n_components, n_layers
         integer, allocatable :: prompt_tokens(:)
         real(sp) :: logits(self%model%vocab_size)
         real(sp), allocatable :: draft_logits(:)
@@ -172,7 +171,7 @@ contains
     subroutine inference_generate_text(self, input_logits, state, tokens_count)
         class(inference), intent(inout) :: self
         real(sp), intent(in) :: input_logits(:)
-        type(state_type), intent(inout) :: state
+        real(sp), intent(inout) :: state(:,:,:)  ! d_model, n_components, n_layers
         integer, intent(out) :: tokens_count
 
         real(sp) :: occurrence(size(input_logits))
@@ -195,27 +194,27 @@ contains
     subroutine inference_generate_text_with_speculative_sampling(self, input_logits, state, draft_state, tokens_count)
         class(inference), intent(in) :: self
         real(sp), intent(in) :: input_logits(self%model%vocab_size)
-        type(state_type), intent(inout) :: state, draft_state
+        real(sp), dimension(:,:,:), intent(inout) :: state, draft_state  ! d_model, n_components, n_layers
         integer, intent(out) :: tokens_count
 
-        type(state_type) :: draft_states(self%options%speculative_sampling_lookahead)
+        real(sp), dimension(:,:,:,:), allocatable :: target_states, draft_states  ! d_model, n_components, n_states, n_layers
+
         real(sp) :: draft_logits(size(input_logits))
         integer :: draft_token_ids(self%options%speculative_sampling_lookahead)
         real(sp) :: draft_tokens_probs(size(input_logits), self%options%speculative_sampling_lookahead)
 
-        type(state_type) :: target_states(self%options%speculative_sampling_lookahead+1)
         real(sp) :: target_logits(size(input_logits), self%options%speculative_sampling_lookahead+1)
         real(sp) :: todo_occurrence(size(input_logits))
 
-        integer :: t, last_accepted_index, last_token_id, lookahead, max_tokens
+        integer :: k, last_token_id, lookahead, max_tokens
         logical :: end_of_generation, all_tokens_accepted
         integer, allocatable :: sampled_tokens_id(:)
 
         lookahead = self%options%speculative_sampling_lookahead
         max_tokens = self%options%generation%max_token_limit
 
-        draft_states = [ (self%draft_model%init_state(), t = 1, lookahead) ]
-        target_states = [ (self%model%init_state(), t = 1, lookahead+1) ]
+        draft_states = self%draft_model%init_states(lookahead)
+        target_states = self%model%init_states(lookahead+1)
 
         todo_occurrence = 0
         last_token_id = generate_next_token(input_logits, todo_occurrence, self%options%generation, end_of_generation)
@@ -226,31 +225,37 @@ contains
         main_loop: do while(tokens_count < max_tokens)
             if (signal_received) exit main_loop
 
-            call copy_state(draft_state, draft_states(1))
+            draft_states(:,:,1,:) = draft_state
+
             call draft_tokens_generation(self, last_token_id, lookahead, draft_states, draft_token_ids, draft_tokens_probs)
 
             target_logits = self%model%forward_batch_with_hidden_states([last_token_id, draft_token_ids], state, target_states)
-            sampled_tokens_id = inference_sample_tokens(self, draft_token_ids, draft_tokens_probs, target_logits, all_tokens_accepted, last_accepted_index)
+            sampled_tokens_id = inference_sample_tokens(self, draft_token_ids, draft_tokens_probs, target_logits, all_tokens_accepted, k)
             last_token_id = sampled_tokens_id(size(sampled_tokens_id))
             tokens_count = tokens_count + size(sampled_tokens_id)
 
-            call self%print_tokens(sampled_tokens_id, skip_end_token=.true.)
-            call copy_state(draft_states(last_accepted_index), draft_state)
+            draft_state = draft_states(:,:,k,:)
 
-            if (last_token_id == 0) exit main_loop
+            call self%print_tokens(sampled_tokens_id, skip_end_token=.true.)
 
             if (.not. all_tokens_accepted) then
-                call copy_state(target_states(last_accepted_index), state)
+                state = target_states(:,:,k,:)
+                if (last_token_id == 0) exit main_loop
                 cycle
             end if
 
+            if (last_token_id == 0) exit main_loop
+
             draft_logits = self%draft_model%forward(last_token_id, draft_state)
-            call copy_state(target_states(lookahead+1), state)
+
             todo_occurrence = 0 ! TODO
+            state = target_states(:,:,lookahead+1,:)
+
             last_token_id = generate_next_token(target_logits(:, lookahead+1), todo_occurrence, self%options%generation, end_of_generation)
+            tokens_count = tokens_count + 1
+
             if (end_of_generation) exit main_loop
             call self%print_token(last_token_id)
-            tokens_count = tokens_count + 1
         end do main_loop
 
     end subroutine
@@ -322,7 +327,7 @@ contains
         class(inference), intent(in) :: self
         integer, intent(in) :: start_token_id
         integer, intent(in) :: lookahead
-        type(state_type), intent(inout) :: draft_states(lookahead)
+        real(sp), intent(inout) :: draft_states(:,:,:,:)  ! d_model, n_components, n_states, n_layers
         integer, intent(out) :: draft_token_ids(lookahead)
         real(sp), intent(out) :: draft_tokens_probs(self%model%vocab_size, lookahead)
 
@@ -336,9 +341,9 @@ contains
 
         do t = 1, lookahead
             if (signal_received) exit
-            if (t > 1) call copy_state(draft_states(t-1), draft_states(t))
+            if (t > 1) draft_states(:,:,t,:) = draft_states(:,:,t-1,:)
 
-            draft_logits = self%draft_model%forward(last_token_id, draft_states(t))
+            draft_logits = self%draft_model%forward(last_token_id, draft_states(:,:,t,:))
             todo_occurrence = 0 ! TODO
             draft_token_ids(t) = generate_next_token(draft_logits, todo_occurrence, self%options%generation, end_of_generation, output_probs=draft_tokens_probs(:, t))
             last_token_id = draft_token_ids(t)
@@ -361,13 +366,14 @@ contains
         integer :: i
 
         if (present(skip_end_token)) then
-            do i = 1, size(token_ids)
-                if (token_ids(i) /= 0) then
-                    call print_token(self%tokenizer%decode([token_ids(i)]))
-                end if
-            end do
-
-            return
+            if (skip_end_token) then
+                do i = 1, size(token_ids)
+                    if (token_ids(i) /= 0) then
+                        call print_token(self%tokenizer%decode([token_ids(i)]))
+                    end if
+                end do
+                return
+            end if
         end if
 
         call print_token(self%tokenizer%decode(token_ids))
@@ -436,7 +442,7 @@ contains
         type(rwkv_lm_type), intent(in) :: model
         integer, intent(in) :: inputs(:)
         type(timer) :: t
-        type(state_type) :: state
+        real(sp), allocatable :: state(:,:,:)
         real(sp), allocatable :: logits(:)
         
         t = timer('Warming up ' // name)
