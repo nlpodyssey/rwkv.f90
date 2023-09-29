@@ -119,9 +119,6 @@ contains
 
         real(sp), dimension(self%dm, size(x, 2)) :: xx, kv, rkv
         real(sp) :: r(self%dm, size(x, 2)), k(self%hidden, size(x, 2))
-        integer :: i, n
-
-        n = size(x, 2)
 
         xx = token_shift(init_state(:, ffn_xx), x)
 
