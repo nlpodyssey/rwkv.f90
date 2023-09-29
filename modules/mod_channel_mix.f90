@@ -130,9 +130,7 @@ contains
         kv = matmul(self%wv, relu(k) ** 2)
         rkv = sigmoid(r) * kv
 
-        do i = 1, n
-            hidden_states(:, ffn_xx, i) = x(:, i)
-        end do
+        hidden_states(:, ffn_xx, :) = x
     end function
 
 end module
