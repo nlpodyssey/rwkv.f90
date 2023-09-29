@@ -80,7 +80,7 @@ contains
 
         class(time_mix_type), intent(in) :: self
         real(sp), intent(in) :: x(:)
-        real(sp), intent(inout) :: state(:, :)
+        real(sp), intent(inout) :: state(:, :) ! d_model, n_components
 
         real(sp), dimension(size(x)) :: k, v, r, ww, p, e1, e2, a, b, rwkv, out
 
@@ -118,7 +118,7 @@ contains
 
         class(time_mix_type), intent(in) :: self
         real(sp), intent(in) :: x(:,:)
-        real(sp), intent(inout) :: state(:, :)
+        real(sp), intent(inout) :: state(:, :) ! d_model, n_components
 
         integer :: i, n
         real(sp), dimension(self%dm, size(x, 2)) :: xx, k, v, r, sx, out
@@ -169,8 +169,8 @@ contains
 
         class(time_mix_type), intent(in) :: self
         real(sp), intent(in) :: x(:,:)
-        real(sp), intent(in) :: init_state(:, :)
-        real(sp), intent(inout) :: hidden_states(:, :, :)
+        real(sp), intent(in) :: init_state(:, :) ! d_model, n_components
+        real(sp), intent(inout) :: hidden_states(:, :, :) ! d_model, n_components, n_states
 
         integer :: i, n
         real(sp), dimension(self%dm, size(x, 2)) :: xx, k, v, r, sx, out

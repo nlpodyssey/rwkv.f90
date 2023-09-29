@@ -68,7 +68,7 @@ contains
 
         class(channel_mix_type), intent(in) :: self
         real(sp), intent(in) :: x(:)
-        real(sp), intent(inout) :: state(:, :)
+        real(sp), intent(inout) :: state(:, :) ! d_model, n_components
 
         real(sp), dimension(size(x)) :: r, kv, rkv
         real(sp) :: k(size(self%wk, 1))
@@ -91,7 +91,7 @@ contains
 
         class(channel_mix_type), intent(in) :: self
         real(sp), intent(in) :: x(:,:) ! d_model, batch_size
-        real(sp), intent(inout) :: state(:, :)
+        real(sp), intent(inout) :: state(:, :) ! d_model, n_components
 
         real(sp), dimension(self%dm, size(x, 2)) :: xx, kv, rkv
         real(sp) :: r(self%dm, size(x, 2)), k(self%hidden, size(x, 2))
@@ -114,8 +114,8 @@ contains
 
         class(channel_mix_type), intent(in) :: self
         real(sp), intent(in) :: x(:,:) ! d_model, batch_size
-        real(sp), intent(in) :: init_state(:, :)
-        real(sp), intent(inout) :: hidden_states(:, :, :)
+        real(sp), intent(in) :: init_state(:, :) ! d_model, n_components
+        real(sp), intent(inout) :: hidden_states(:, :, :) ! d_model, n_components, n_states
 
         real(sp), dimension(self%dm, size(x, 2)) :: xx, kv, rkv
         real(sp) :: r(self%dm, size(x, 2)), k(self%hidden, size(x, 2))
